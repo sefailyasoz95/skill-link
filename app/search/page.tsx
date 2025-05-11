@@ -253,7 +253,7 @@ export default function SearchPage() {
 								)}
 							</Button>
 						</SheetTrigger>
-						<SheetContent className='sm:max-w-md'>
+						<SheetContent className='sm:max-w-md' title='Filter Collaborators'>
 							<SheetHeader>
 								<SheetTitle>Filter Collaborators</SheetTitle>
 								<SheetDescription>Narrow your search to find the perfect match</SheetDescription>

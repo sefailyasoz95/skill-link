@@ -14,6 +14,8 @@ export default function Header() {
 	const [isOpen, setIsOpen] = useState(false);
 	const pathname = usePathname();
 	const { user, signOut } = useAuth();
+	console.log("user: ", user);
+
 	useEffect(() => {
 		trackEvent("home_page_viewed", {
 			event_category: "home_page",
@@ -22,14 +24,14 @@ export default function Header() {
 		});
 	}, []);
 	const routes = [
-		{
-			name: "Home",
-			path: "/",
-		},
-		{
-			name: "Search",
-			path: "/search",
-		},
+		// {
+		// 	name: "Home",
+		// 	path: "/",
+		// },
+		// {
+		// 	name: "Search",
+		// 	path: "/search",
+		// },
 		{
 			name: "How It Works",
 			path: "/how-it-works",
@@ -61,56 +63,50 @@ export default function Header() {
 					<Link href='/' className='items-center space-x-2 flex'>
 						<span className='hidden font-bold sm:inline-block text-xl'>Skill Link</span>
 					</Link>
-					{/* <nav className="hidden md:flex gap-6">
-            {routes.map((route) => (
-              <Link
-                key={route.path}
-                href={route.path}
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === route.path
-                    ? "text-foreground"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {route.name}
-              </Link>
-            ))}
-          </nav> */}
+					{/* <nav className='hidden md:flex gap-6'>
+						{routes.map((route) => (
+							<Link
+								key={route.path}
+								href={route.path}
+								className={`text-sm my-auto font-medium transition-colors hover:text-primary ${
+									pathname === route.path ? "text-foreground" : "text-muted-foreground"
+								}`}>
+								{route.name}
+							</Link>
+						))}
+					</nav> */}
 				</div>
 				<div className='flex flex-1 items-center justify-end space-x-4'>
 					<nav className='hidden md:flex items-center space-x-2'>
 						<ModeToggle />
 						{/* {user ? (
-              <>
-                <Button variant="ghost" size="icon" asChild>
-                  <Link href="/search">
-                    <Search className="h-4 w-4" />
-                    <span className="sr-only">Search</span>
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="icon" asChild>
-                  <Link href="/messages">
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="sr-only">Messages</span>
-                  </Link>
-                </Button>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/dashboard">Dashboard</Link>
-                </Button>
-                <Button variant="outline" size="sm" onClick={signOut}>
-                  Sign Out
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/auth/signin">Sign In</Link>
-                </Button>
-                <Button size="sm" asChild>
-                  <Link href="/auth/signup">Sign Up</Link>
-                </Button>
-              </>
-            )} */}
+							<>
+								<Button variant='ghost' size='icon' asChild>
+									<Link href='/search'>
+										<Search className='h-4 w-4' />
+										<span className='sr-only'>Search</span>
+									</Link>
+								</Button>
+								<Button variant='ghost' size='icon' asChild>
+									<Link href='/messages'>
+										<MessageSquare className='h-4 w-4' />
+										<span className='sr-only'>Messages</span>
+									</Link>
+								</Button>
+								<Button variant='ghost' size='sm' asChild>
+									<Link href='/dashboard'>Dashboard</Link>
+								</Button>
+								<Button variant='outline' size='sm' onClick={signOut}>
+									Sign Out
+								</Button>
+							</>
+						) : (
+							<>
+								<Button variant='ghost' size='sm' asChild>
+									<Link href='/auth/signin'>Sign In</Link>
+								</Button>
+							</>
+						)} */}
 					</nav>
 					<Sheet open={isOpen} onOpenChange={setIsOpen}>
 						<SheetTrigger asChild>
@@ -118,61 +114,47 @@ export default function Header() {
 								<Menu className='h-5 w-5' />
 							</Button>
 						</SheetTrigger>
-						<SheetContent side='right' className='pr-0'>
+						<SheetContent side='right' className='pr-0' title='Skill Link'>
 							<Link href='/' className='flex items-center' onClick={() => setIsOpen(false)}>
 								<span className='font-bold'>Skill Link</span>
 							</Link>
 							<div className='mt-8 flex flex-col space-y-4'>
 								{/* {routes.map((route) => (
-                  <Link
-                    key={route.path}
-                    href={route.path}
-                    className="flex w-full items-center py-2 text-sm font-medium transition-colors hover:text-primary"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {route.name}
-                  </Link>
-                ))}
-                <div className="h-px bg-muted my-4" />
-                {user ? (
-                  <>
-                    {authenticatedRoutes.map((route) => (
-                      <Link
-                        key={route.path}
-                        href={route.path}
-                        className="flex w-full items-center py-2 text-sm font-medium transition-colors hover:text-primary"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {route.icon}
-                        {route.name}
-                      </Link>
-                    ))}
-                    <Button
-                      variant="outline"
-                      className="mt-4"
-                      onClick={signOut}
-                    >
-                      Sign Out
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      href="/auth/signin"
-                      className="flex w-full items-center py-2 text-sm font-medium transition-colors hover:text-primary"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Sign In
-                    </Link>
-                    <Link
-                      href="/auth/signup"
-                      className="flex w-full items-center py-2 text-sm font-medium transition-colors hover:text-primary"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Sign Up
-                    </Link>
-                  </>
-                )} */}
+									<Link
+										key={route.path}
+										href={route.path}
+										className='flex w-full items-center py-2 text-sm font-medium transition-colors hover:text-primary'
+										onClick={() => setIsOpen(false)}>
+										{route.name}
+									</Link>
+								))} */}
+								<div className='h-px bg-muted my-4' />
+								{/* {user ? (
+									<>
+										{authenticatedRoutes.map((route) => (
+											<Link
+												key={route.path}
+												href={route.path}
+												className='flex w-full items-center py-2 text-sm font-medium transition-colors hover:text-primary'
+												onClick={() => setIsOpen(false)}>
+												{route.icon}
+												{route.name}
+											</Link>
+										))}
+										<Button variant='outline' className='mt-4' onClick={signOut}>
+											Sign Out
+										</Button>
+									</>
+								) : (
+									<>
+										<Link
+											href='/auth/signin'
+											className='flex w-full items-center py-2 text-sm font-medium transition-colors hover:text-primary'
+											onClick={() => setIsOpen(false)}>
+											Sign In
+										</Link>
+									</>
+								)} */}
 								<div className='flex items-center justify-between py-4'>
 									<span className='text-sm font-medium'>Toggle Theme</span>
 									<ModeToggle />
