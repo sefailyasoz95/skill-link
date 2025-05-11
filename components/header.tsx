@@ -63,7 +63,7 @@ export default function Header() {
 					<Link href='/' className='items-center space-x-2 flex'>
 						<span className='hidden font-bold sm:inline-block text-xl'>Skill Link</span>
 					</Link>
-					{/* <nav className='hidden md:flex gap-6'>
+					<nav className='hidden md:flex gap-6'>
 						{routes.map((route) => (
 							<Link
 								key={route.path}
@@ -74,7 +74,7 @@ export default function Header() {
 								{route.name}
 							</Link>
 						))}
-					</nav> */}
+					</nav>
 				</div>
 				<div className='flex flex-1 items-center justify-end space-x-4'>
 					<nav className='hidden md:flex items-center space-x-2'>
@@ -119,7 +119,7 @@ export default function Header() {
 								<span className='font-bold'>Skill Link</span>
 							</Link>
 							<div className='mt-8 flex flex-col space-y-4'>
-								{/* {routes.map((route) => (
+								{routes.map((route) => (
 									<Link
 										key={route.path}
 										href={route.path}
@@ -127,7 +127,7 @@ export default function Header() {
 										onClick={() => setIsOpen(false)}>
 										{route.name}
 									</Link>
-								))} */}
+								))}
 								<div className='h-px bg-muted my-4' />
 								{/* {user ? (
 									<>
