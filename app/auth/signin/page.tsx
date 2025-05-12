@@ -31,38 +31,6 @@ export default function SignInPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
-
-  const onSubmit = async (data: FormData) => {
-    setIsLoading(true);
-
-    const { error } = await signIn(data.email, data.password);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-
-    // Success
-    toast({
-      title: "Welcome back",
-      description: "You have successfully signed in.",
-    });
-
-    router.push("/dashboard");
-    setIsLoading(false);
-  };
   const handleSignIn = async () => {
     const res = await googleSignIn();
     if (res.error) {
