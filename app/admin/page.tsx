@@ -1,24 +1,36 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
-import { Search, UserCog, Activity, Settings, Shield, AlertTriangle } from 'lucide-react';
-import { format } from 'date-fns';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase-client";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import {
+  Search,
+  UserCog,
+  Activity,
+  Settings,
+  Shield,
+  AlertTriangle,
+} from "lucide-react";
+import { format } from "date-fns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
   BarChart,
   Bar,
@@ -31,6 +43,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { useAuth } from "@/components/auth-provider";
 
 type Profile = {
   id: string;
@@ -48,10 +61,16 @@ type StatsData = {
   skillDistribution: { name: string; value: number }[];
 };
 
-const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+const COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+];
 
 export default function AdminPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState<Profile[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,26 +82,26 @@ export default function AdminPage() {
     weeklySignups: [],
     skillDistribution: [],
   });
-  
+
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   // Check if user is admin (in a real app, this would be a proper role check)
-  const isAdmin = user?.email === 'admin@example.com'; // This is just a placeholder
+  const isAdmin = user?.email === "admin@example.com"; // This is just a placeholder
 
   useEffect(() => {
     if (!user) {
-      router.push('/auth/signin');
+      router.push("/auth/signin");
       return;
     }
 
     if (!isAdmin) {
-      router.push('/dashboard');
+      router.push("/dashboard");
       toast({
-        title: 'Access denied',
-        description: 'You do not have permission to access the admin area',
-        variant: 'destructive',
+        title: "Access denied",
+        description: "You do not have permission to access the admin area",
+        variant: "destructive",
       });
       return;
     }
@@ -92,24 +111,26 @@ export default function AdminPage() {
         // In a real app, this would be a secured admin API endpoint
         // Here we're simulating direct DB access which would normally be restricted
         const { data: usersData, error: usersError } = await supabase
-          .from('profiles')
-          .select('id, created_at, full_name')
-          .order('created_at', { ascending: false });
+          .from("profiles")
+          .select("id, created_at, full_name")
+          .order("created_at", { ascending: false });
 
         if (usersError) throw usersError;
 
         // Get emails from auth.users (this is simplified and would normally be done server-side)
-        const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-        
+        const { data: authData, error: authError } =
+          await supabase.auth.admin.listUsers();
+
         // This is a simulation - in reality this would require admin access through server functions
         // For demo purposes only
-        const usersWithEmail = usersData?.map(profile => {
-          const authUser = authData?.users.find(u => u.id === profile.id);
-          return {
-            ...profile,
-            email: authUser?.email,
-          };
-        }) || [];
+        const usersWithEmail =
+          usersData?.map((profile) => {
+            const authUser = authData?.users.find((u) => u.id === profile.id);
+            return {
+              ...profile,
+              email: authUser?.email,
+            };
+          }) || [];
 
         setUsers(usersWithEmail);
         setFilteredUsers(usersWithEmail);
@@ -118,9 +139,9 @@ export default function AdminPage() {
         generateMockStats(usersWithEmail);
       } catch (error: any) {
         toast({
-          title: 'Error fetching users',
+          title: "Error fetching users",
           description: error.message,
-          variant: 'destructive',
+          variant: "destructive",
         });
       } finally {
         setLoading(false);
@@ -134,14 +155,20 @@ export default function AdminPage() {
   const generateMockStats = (users: Profile[]) => {
     // Mock weekly signups
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const weeklySignups = days.map(day => ({
+    const weeklySignups = days.map((day) => ({
       day,
       count: Math.floor(Math.random() * 15) + 1,
     }));
 
     // Mock skill distribution
-    const skills = ["Web Development", "Design", "Marketing", "Business", "Other"];
-    const skillDistribution = skills.map(name => ({
+    const skills = [
+      "Web Development",
+      "Design",
+      "Marketing",
+      "Business",
+      "Other",
+    ];
+    const skillDistribution = skills.map((name) => ({
       name,
       value: Math.floor(Math.random() * 50) + 10,
     }));
@@ -162,9 +189,10 @@ export default function AdminPage() {
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const filtered = users.filter(user => 
-        user.full_name?.toLowerCase().includes(query) ||
-        user.email?.toLowerCase().includes(query)
+      const filtered = users.filter(
+        (user) =>
+          user.full_name?.toLowerCase().includes(query) ||
+          user.email?.toLowerCase().includes(query)
       );
       setFilteredUsers(filtered);
     } else {
@@ -201,13 +229,16 @@ export default function AdminPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Users</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Users
+              </CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.activeUsers}</div>
               <p className="text-xs text-muted-foreground">
-                {Math.floor(stats.activeUsers / stats.totalUsers * 100)}% of total users
+                {Math.floor((stats.activeUsers / stats.totalUsers) * 100)}% of
+                total users
               </p>
             </CardContent>
           </Card>
@@ -219,7 +250,8 @@ export default function AdminPage() {
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalConnections}</div>
               <p className="text-xs text-muted-foreground">
-                Avg {(stats.totalConnections / stats.totalUsers).toFixed(1)} per user
+                Avg {(stats.totalConnections / stats.totalUsers).toFixed(1)} per
+                user
               </p>
             </CardContent>
           </Card>
@@ -294,9 +326,13 @@ export default function AdminPage() {
                     ) : filteredUsers.length > 0 ? (
                       filteredUsers.map((user) => (
                         <TableRow key={user.id}>
-                          <TableCell>{user.full_name || 'Unnamed User'}</TableCell>
-                          <TableCell>{user.email || 'No email'}</TableCell>
-                          <TableCell>{format(new Date(user.created_at), 'MMM d, yyyy')}</TableCell>
+                          <TableCell>
+                            {user.full_name || "Unnamed User"}
+                          </TableCell>
+                          <TableCell>{user.email || "No email"}</TableCell>
+                          <TableCell>
+                            {format(new Date(user.created_at), "MMM d, yyyy")}
+                          </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
                               <Button variant="ghost" size="sm">
@@ -361,10 +397,15 @@ export default function AdminPage() {
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) =>
+                          `${name} ${(percent * 100).toFixed(0)}%`
+                        }
                       >
                         {stats.skillDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -405,11 +446,15 @@ export default function AdminPage() {
                       <TableCell>Message</TableCell>
                       <TableCell>John Smith</TableCell>
                       <TableCell>Inappropriate content</TableCell>
-                      <TableCell>{format(new Date(), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>{format(new Date(), "MMM d, yyyy")}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">Review</Button>
-                          <Button variant="destructive" size="sm">Delete</Button>
+                          <Button variant="outline" size="sm">
+                            Review
+                          </Button>
+                          <Button variant="destructive" size="sm">
+                            Delete
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -417,11 +462,15 @@ export default function AdminPage() {
                       <TableCell>Profile</TableCell>
                       <TableCell>Alice Johnson</TableCell>
                       <TableCell>Misleading information</TableCell>
-                      <TableCell>{format(new Date(), 'MMM d, yyyy')}</TableCell>
+                      <TableCell>{format(new Date(), "MMM d, yyyy")}</TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="sm">Review</Button>
-                          <Button variant="destructive" size="sm">Delete</Button>
+                          <Button variant="outline" size="sm">
+                            Review
+                          </Button>
+                          <Button variant="destructive" size="sm">
+                            Delete
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

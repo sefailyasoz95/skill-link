@@ -1,9 +1,15 @@
-'use client';
+"use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase-client";
 
 type AuthContextType = {
   user: User | null;
@@ -12,6 +18,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
+  googleSignIn: () => Promise<{ error: any }>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -21,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => ({ error: null }),
   signOut: async () => {},
   loading: true,
+  googleSignIn: async () => ({ error: null }),
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -41,13 +49,13 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       try {
         const { data, error } = await supabase.auth.getSession();
         if (error) {
-          console.error('Error fetching session:', error);
+          console.error("Error fetching session:", error);
           return;
         }
         setSession(data.session);
         setUser(data.session?.user ?? null);
       } catch (err) {
-        console.error('Error in getSession:', err);
+        console.error("Error in getSession:", err);
       } finally {
         setLoading(false);
       }
@@ -56,14 +64,14 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     getSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        setLoading(false);
-        router.refresh();
-      }
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      setLoading(false);
+      router.refresh();
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -81,7 +89,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       return { error };
     } catch (error) {
-      console.error('Error in signUp:', error);
+      console.error("Error in signUp:", error);
       return { error };
     }
   };
@@ -94,7 +102,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       return { error };
     } catch (error) {
-      console.error('Error in signIn:', error);
+      console.error("Error in signIn:", error);
       return { error };
     }
   };
@@ -102,12 +110,25 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      router.push('/');
+      router.push("/");
     } catch (error) {
-      console.error('Error in signOut:', error);
+      console.error("Error in signOut:", error);
     }
   };
-
+  const googleSignIn = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      return { error };
+    } catch (error) {
+      console.error("Error in signIn:", error);
+      return { error };
+    }
+  };
   const value = {
     user,
     session,
@@ -115,6 +136,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     signIn,
     signOut,
     loading,
+    googleSignIn,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -364,12 +364,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Enhanced Early access section */}
-      <section className="py-20 md:py-32 relative overflow-hidden rounded-3xl">
-        {/* Background with gradient */}
+      {/* <section className="py-20 md:py-32 relative overflow-hidden rounded-3xl">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 z-0"></div>
-
-        {/* Abstract shapes */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-200 dark:bg-indigo-800/20 rounded-bl-full opacity-30 dark:opacity-20"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-200 dark:bg-purple-800/20 rounded-tr-full opacity-30 dark:opacity-20"></div>
 
@@ -380,7 +376,6 @@ export default function Home() {
         <div className="container px-4 md:px-6 relative z-10">
           <div className="mx-auto max-w-3xl">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 md:p-12 relative overflow-hidden animate-fadeIn">
-              {/* Decorative elements */}
               <div className="absolute top-0 right-0 -mt-12 -mr-12 w-40 h-40 bg-indigo-200 dark:bg-indigo-800/30 rounded-full blur-2xl opacity-70 dark:opacity-40"></div>
               <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-40 h-40 bg-purple-200 dark:bg-purple-800/30 rounded-full blur-2xl opacity-70 dark:opacity-40"></div>
 
@@ -414,7 +409,7 @@ export default function Home() {
                   <EarlyAccessForm />
                 </div>
 
-                {/* <div
+                <div
                   className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-gray-500 dark:text-gray-400 animate-fadeIn"
                   style={{ animationDelay: "0.5s" }}
                 >
@@ -428,12 +423,12 @@ export default function Home() {
                       {item}
                     </div>
                   ))}
-                </div> */}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
     </div>
   );
 }

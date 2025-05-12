@@ -1,16 +1,22 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/use-auth';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
-import { Edit, Briefcase, MapPin, User, Clock, Link2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase-client";
+import { Edit, Briefcase, MapPin, User, Clock, Link2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/components/auth-provider";
 
 type Profile = {
   id: string;
@@ -20,11 +26,13 @@ type Profile = {
   avatar_url: string | null;
   bio: string | null;
   skills: string[] | null;
-  past_projects: {
-    title: string;
-    description: string;
-    url: string;
-  }[] | null;
+  past_projects:
+    | {
+        title: string;
+        description: string;
+        url: string;
+      }[]
+    | null;
   collaboration_needs: string[] | null;
   collaboration_terms: string[] | null;
   availability: string | null;
@@ -34,37 +42,37 @@ type Profile = {
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
 
   useEffect(() => {
     if (!user) {
-      router.push('/auth/signin');
+      router.push("/auth/signin");
       return;
     }
 
     const fetchProfile = async () => {
       try {
         const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
           .single();
 
         if (error) throw error;
         setProfile(data);
       } catch (error: any) {
-        console.error('Error fetching profile:', error.message);
+        console.error("Error fetching profile:", error.message);
         // If the profile doesn't exist, redirect to create one
-        if (error.code === 'PGRST116') {
-          router.push('/profile/create');
+        if (error.code === "PGRST116") {
+          router.push("/profile/create");
         } else {
           toast({
-            title: 'Error',
-            description: 'Failed to load profile information',
-            variant: 'destructive',
+            title: "Error",
+            description: "Failed to load profile information",
+            variant: "destructive",
           });
         }
       } finally {
@@ -96,7 +104,9 @@ export default function ProfilePage() {
       <div className="container py-10">
         <div className="mx-auto max-w-4xl text-center space-y-4">
           <h1 className="text-3xl font-bold">Profile Not Found</h1>
-          <p className="text-muted-foreground">Let's create your profile to get started.</p>
+          <p className="text-muted-foreground">
+            Let's create your profile to get started.
+          </p>
           <Button asChild>
             <a href="/profile/create">Create Profile</a>
           </Button>
@@ -125,7 +135,7 @@ export default function ProfilePage() {
                 {profile.avatar_url ? (
                   <img
                     src={profile.avatar_url}
-                    alt={profile.full_name || 'Profile'}
+                    alt={profile.full_name || "Profile"}
                     className="h-24 w-24 rounded-full object-cover"
                   />
                 ) : (
@@ -133,7 +143,9 @@ export default function ProfilePage() {
                 )}
               </div>
               <div>
-                <CardTitle className="text-2xl">{profile.full_name || 'Unnamed User'}</CardTitle>
+                <CardTitle className="text-2xl">
+                  {profile.full_name || "Unnamed User"}
+                </CardTitle>
                 {profile.location && (
                   <CardDescription className="flex items-center mt-1">
                     <MapPin className="h-3.5 w-3.5 mr-1" /> {profile.location}
@@ -141,7 +153,8 @@ export default function ProfilePage() {
                 )}
                 {profile.availability && (
                   <CardDescription className="flex items-center mt-1">
-                    <Clock className="h-3.5 w-3.5 mr-1" /> Available for {profile.availability}
+                    <Clock className="h-3.5 w-3.5 mr-1" /> Available for{" "}
+                    {profile.availability}
                   </CardDescription>
                 )}
               </div>
@@ -150,7 +163,9 @@ export default function ProfilePage() {
           <CardContent className="space-y-6 pt-6">
             {profile.bio && (
               <div>
-                <p className="text-sm leading-relaxed whitespace-pre-line">{profile.bio}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-line">
+                  {profile.bio}
+                </p>
               </div>
             )}
 
@@ -164,7 +179,9 @@ export default function ProfilePage() {
                     </Badge>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No skills specified</p>
+                  <p className="text-sm text-muted-foreground">
+                    No skills specified
+                  </p>
                 )}
               </div>
             </div>
@@ -174,14 +191,15 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Looking For</h3>
               <div className="flex flex-wrap gap-2">
-                {profile.collaboration_needs && profile.collaboration_needs.length > 0 ? (
+                {profile.collaboration_needs &&
+                profile.collaboration_needs.length > 0 ? (
                   profile.collaboration_needs.map((need, index) => (
-                    <Badge key={index}>
-                      {need}
-                    </Badge>
+                    <Badge key={index}>{need}</Badge>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No collaboration needs specified</p>
+                  <p className="text-sm text-muted-foreground">
+                    No collaboration needs specified
+                  </p>
                 )}
               </div>
             </div>
@@ -191,14 +209,17 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Collaboration Terms</h3>
               <div className="flex flex-wrap gap-2">
-                {profile.collaboration_terms && profile.collaboration_terms.length > 0 ? (
+                {profile.collaboration_terms &&
+                profile.collaboration_terms.length > 0 ? (
                   profile.collaboration_terms.map((term, index) => (
                     <Badge key={index} variant="outline">
                       {term}
                     </Badge>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No collaboration terms specified</p>
+                  <p className="text-sm text-muted-foreground">
+                    No collaboration terms specified
+                  </p>
                 )}
               </div>
             </div>
@@ -226,7 +247,8 @@ export default function ProfilePage() {
                                 rel="noopener noreferrer"
                                 className="text-primary hover:underline flex items-center text-sm"
                               >
-                                <Link2 className="h-3.5 w-3.5 mr-1" /> View Project
+                                <Link2 className="h-3.5 w-3.5 mr-1" /> View
+                                Project
                               </a>
                             )}
                           </div>
