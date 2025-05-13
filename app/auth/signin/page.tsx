@@ -1,11 +1,4 @@
 "use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,17 +11,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
 
-const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type FormData = z.infer<typeof formSchema>;
-
 export default function SignInPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const { signIn, googleSignIn } = useAuth();
-  const router = useRouter();
+  const { googleSignIn } = useAuth();
   const { toast } = useToast();
 
   const handleSignIn = async () => {
@@ -48,12 +32,7 @@ export default function SignInPage() {
           <CardDescription>Use your google account to sign in</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button
-            variant="outline"
-            className="w-full"
-            disabled={isLoading}
-            onClick={handleSignIn}
-          >
+          <Button variant="outline" className="w-full" onClick={handleSignIn}>
             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
               <path
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

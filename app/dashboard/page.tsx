@@ -55,7 +55,7 @@ export default function DashboardPage() {
     const fetchProfile = async () => {
       try {
         const { data, error } = await supabase
-          .from("profiles")
+          .from("users")
           .select("*")
           .eq("id", user.id)
           .single();
@@ -127,7 +127,7 @@ export default function DashboardPage() {
     };
 
     fetchProfile();
-    fetchConnections();
+    // fetchConnections();
   }, [user, authLoading, router]);
 
   const handleConnectionResponse = async (

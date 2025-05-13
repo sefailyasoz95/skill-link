@@ -21,7 +21,6 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const { user, signOut } = useAuth();
-  console.log("user: ", user);
 
   useEffect(() => {
     trackEvent("home_page_viewed", {
@@ -67,26 +66,31 @@ export default function Header() {
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center space-x-4 sm:justify-between sm:space-x-0">
         <div className="flex gap-6 md:gap-10">
-          <Link href="/" className="items-center space-x-2 flex">
+          <Link
+            href={user ? "/dashboard" : "/"}
+            className="items-center space-x-2 flex"
+          >
             <span className="hidden font-bold sm:inline-block text-xl">
               Skill Link
             </span>
           </Link>
-          <nav className="hidden md:flex gap-6">
-            {routes.map((route) => (
-              <Link
-                key={route.path}
-                href={route.path}
-                className={`text-sm my-auto font-medium transition-colors hover:text-primary ${
-                  pathname === route.path
-                    ? "text-foreground"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {route.name}
-              </Link>
-            ))}
-          </nav>
+          {!user && (
+            <nav className="hidden md:flex gap-6">
+              {routes.map((route) => (
+                <Link
+                  key={route.path}
+                  href={route.path}
+                  className={`text-sm my-auto font-medium transition-colors hover:text-primary ${
+                    pathname === route.path
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {route.name}
+                </Link>
+              ))}
+            </nav>
+          )}
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
           <nav className="hidden md:flex items-center space-x-2">
