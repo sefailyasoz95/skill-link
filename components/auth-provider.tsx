@@ -70,7 +70,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
       setLoading(false);
-      router.refresh();
+      router.push("/dashboard");
     });
 
     return () => {

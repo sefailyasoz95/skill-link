@@ -7,14 +7,26 @@ export interface User {
   location: string | null;
   availability: "part-time" | "full-time" | "weekends" | null;
   created_at: string; // ISO date string (TIMESTAMPTZ)
+  skills?: Skill[]; // from user_skills
+  projects?: Project[]; // one-to-many
+  collab_needs?: CollabNeed[]; // one-to-many
+  profile_views_received?: ProfileView[]; // viewed_user_id = this user
+  profile_views_made?: ProfileView[]; // viewer_id = this user
+  chat_memberships?: ChatMember[]; // many-to-many via chat_members
+  messages?: Message[]; // sent messages
+  connections_as_a?: Connection[]; // user_a = this user
+  connections_as_b?: Connection[]; // user_b = this user
 }
 export interface Skill {
   id: number;
   name: string;
+  users?: User[]; // via user_skills
 }
 export interface UserSkill {
   user_id: string; // UUID
   skill_id: number;
+  user?: User;
+  skill?: Skill;
 }
 export interface Project {
   id: string; // UUID
@@ -23,6 +35,7 @@ export interface Project {
   description: string;
   url: string | null;
   created_at: string;
+  user?: User;
 }
 export interface CollabNeed {
   id: string;
@@ -31,6 +44,7 @@ export interface CollabNeed {
   description: string;
   conditions: string | null;
   created_at: string;
+  user?: User;
 }
 export type ConnectionStatus = "pending" | "accepted" | "rejected";
 
@@ -40,23 +54,33 @@ export interface Connection {
   user_b: string;
   status: ConnectionStatus;
   created_at: string;
+  userA?: User;
+  userB?: User;
 }
 export interface ProfileView {
   id: string;
   viewer_id: string;
   viewed_user_id: string;
   viewed_at: string;
+  viewer?: User;
+  viewed_user?: User;
 }
 export interface Chat {
   id: string;
   is_group: boolean;
   name: string | null;
   created_at: string;
+  members?: User[]; // via chat_members
+  chat_members?: ChatMember[]; // for metadata like joined_at
+  messages?: Message[];
 }
 export interface ChatMember {
   chat_id: string;
   user_id: string;
   joined_at: string;
+
+  chat?: Chat;
+  user?: User;
 }
 export interface Message {
   id: string;
@@ -64,4 +88,6 @@ export interface Message {
   sender_id: string | null;
   content: string;
   sent_at: string;
+  chat?: Chat;
+  sender?: User;
 }

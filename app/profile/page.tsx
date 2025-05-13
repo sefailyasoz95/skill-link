@@ -17,30 +17,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
-
-type Profile = {
-  id: string;
-  created_at: string;
-  updated_at: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  skills: string[] | null;
-  past_projects:
-    | {
-        title: string;
-        description: string;
-        url: string;
-      }[]
-    | null;
-  collaboration_needs: string[] | null;
-  collaboration_terms: string[] | null;
-  availability: string | null;
-  location: string | null;
-};
+import { User as UserType } from "@/lib/types";
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const { user } = useAuth();
@@ -132,9 +111,9 @@ export default function ProfilePage() {
             <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 rounded-t-lg" />
             <div className="relative mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <div className="h-24 w-24 rounded-full bg-primary/10 ring-4 ring-background flex items-center justify-center">
-                {profile.avatar_url ? (
+                {profile.profile_picture ? (
                   <img
-                    src={profile.avatar_url}
+                    src={profile.profile_picture}
                     alt={profile.full_name || "Profile"}
                     className="h-24 w-24 rounded-full object-cover"
                   />
@@ -172,7 +151,7 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Skills</h3>
               <div className="flex flex-wrap gap-2">
-                {profile.skills && profile.skills.length > 0 ? (
+                {/* {profile.skills && profile.skills.length > 0 ? (
                   profile.skills.map((skill, index) => (
                     <Badge key={index} variant="secondary">
                       {skill}
@@ -182,7 +161,10 @@ export default function ProfilePage() {
                   <p className="text-sm text-muted-foreground">
                     No skills specified
                   </p>
-                )}
+                )} */}
+                <p className="text-sm text-muted-foreground">
+                  No skills specified
+                </p>
               </div>
             </div>
 
@@ -191,7 +173,7 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Looking For</h3>
               <div className="flex flex-wrap gap-2">
-                {profile.collaboration_needs &&
+                {/* {profile.collaboration_needs &&
                 profile.collaboration_needs.length > 0 ? (
                   profile.collaboration_needs.map((need, index) => (
                     <Badge key={index}>{need}</Badge>
@@ -200,7 +182,11 @@ export default function ProfilePage() {
                   <p className="text-sm text-muted-foreground">
                     No collaboration needs specified
                   </p>
-                )}
+                )} */}
+
+                <p className="text-sm text-muted-foreground">
+                  No collaboration needs specified
+                </p>
               </div>
             </div>
 
@@ -209,7 +195,7 @@ export default function ProfilePage() {
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Collaboration Terms</h3>
               <div className="flex flex-wrap gap-2">
-                {profile.collaboration_terms &&
+                {/* {profile.collaboration_terms &&
                 profile.collaboration_terms.length > 0 ? (
                   profile.collaboration_terms.map((term, index) => (
                     <Badge key={index} variant="outline">
@@ -220,7 +206,10 @@ export default function ProfilePage() {
                   <p className="text-sm text-muted-foreground">
                     No collaboration terms specified
                   </p>
-                )}
+                )} */}
+                <p className="text-sm text-muted-foreground">
+                  No collaboration terms specified
+                </p>
               </div>
             </div>
 

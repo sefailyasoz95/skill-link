@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -17,24 +16,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
-
-type Profile = {
-  id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  skills: string[] | null;
-};
-
-type Connection = {
-  id: string;
-  created_at: string;
-  status: "pending" | "connected" | "rejected";
-  profile: Profile;
-};
+import { Connection, User as UserType } from "@/lib/types";
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserType | null>(null);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [pendingConnections, setPendingConnections] = useState<Connection[]>(
     []
@@ -215,9 +201,9 @@ export default function DashboardPage() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-4">
                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      {profile.avatar_url ? (
+                      {profile.profile_picture ? (
                         <img
-                          src={profile.avatar_url}
+                          src={profile.profile_picture}
                           alt={profile.full_name || "Profile"}
                           className="h-12 w-12 rounded-full object-cover"
                         />
@@ -255,7 +241,7 @@ export default function DashboardPage() {
                             key={index}
                             className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
                           >
-                            {skill}
+                            {skill.name}
                           </span>
                         ))
                       ) : (
@@ -369,10 +355,10 @@ export default function DashboardPage() {
                       <CardContent className="p-4">
                         <div className="flex items-start space-x-4">
                           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            {connection.profile?.avatar_url ? (
+                            {connection.userA?.profile_picture ? (
                               <img
-                                src={connection.profile.avatar_url}
-                                alt={connection.profile.full_name || "Profile"}
+                                src={connection.userA.profile_picture}
+                                alt={connection.userA.full_name || "Profile"}
                                 className="h-10 w-10 rounded-full object-cover"
                               />
                             ) : (
@@ -381,23 +367,23 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex-1 space-y-1">
                             <p className="font-medium">
-                              {connection.profile?.full_name || "Unnamed User"}
+                              {connection.userA?.full_name || "Unnamed User"}
                             </p>
                             <div className="flex flex-wrap gap-1">
-                              {connection.profile?.skills
+                              {connection.userA?.skills
                                 ?.slice(0, 3)
                                 .map((skill, i) => (
                                   <span
                                     key={i}
                                     className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
                                   >
-                                    {skill}
+                                    {skill.name}
                                   </span>
                                 ))}
-                              {connection.profile?.skills &&
-                                connection.profile.skills.length > 3 && (
+                              {connection.userA?.skills &&
+                                connection.userA.skills.length > 3 && (
                                   <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                                    +{connection.profile.skills.length - 3} more
+                                    +{connection.userA.skills.length - 3} more
                                   </span>
                                 )}
                             </div>
@@ -405,12 +391,12 @@ export default function DashboardPage() {
                         </div>
                         <div className="mt-4 flex items-center justify-end space-x-2">
                           <Button asChild variant="outline" size="sm">
-                            <Link href={`/profile/${connection.profile?.id}`}>
+                            <Link href={`/profile/${connection.userA?.id}`}>
                               View Profile
                             </Link>
                           </Button>
                           <Button asChild size="sm">
-                            <Link href={`/messages/${connection.profile?.id}`}>
+                            <Link href={`/messages/${connection.userA?.id}`}>
                               <MessageSquare className="mr-2 h-4 w-4" />
                               Message
                             </Link>
@@ -448,10 +434,10 @@ export default function DashboardPage() {
                       <CardContent className="p-4">
                         <div className="flex items-start space-x-4">
                           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            {connection.profile?.avatar_url ? (
+                            {connection.userA?.profile_picture ? (
                               <img
-                                src={connection.profile.avatar_url}
-                                alt={connection.profile.full_name || "Profile"}
+                                src={connection.userA.profile_picture}
+                                alt={connection.userA.full_name || "Profile"}
                                 className="h-10 w-10 rounded-full object-cover"
                               />
                             ) : (
@@ -460,23 +446,23 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex-1 space-y-1">
                             <p className="font-medium">
-                              {connection.profile?.full_name || "Unnamed User"}
+                              {connection.userA?.full_name || "Unnamed User"}
                             </p>
                             <div className="flex flex-wrap gap-1">
-                              {connection.profile?.skills
+                              {connection.userA?.skills
                                 ?.slice(0, 3)
                                 .map((skill, i) => (
                                   <span
                                     key={i}
                                     className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
                                   >
-                                    {skill}
+                                    {skill.name}
                                   </span>
                                 ))}
-                              {connection.profile?.skills &&
-                                connection.profile.skills.length > 3 && (
+                              {connection.userA?.skills &&
+                                connection.userA.skills.length > 3 && (
                                   <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                                    +{connection.profile.skills.length - 3} more
+                                    +{connection.userA.skills.length - 3} more
                                   </span>
                                 )}
                             </div>

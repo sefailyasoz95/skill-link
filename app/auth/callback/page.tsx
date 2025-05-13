@@ -13,12 +13,16 @@ export default function AuthCallback() {
     const { data, error } = await supabase.auth.getSession();
 
     if (!error) {
-      toast({
-        title: "YES!",
-        description: "Sign in success!",
-      });
       const { user } = data.session!;
-
+      const isUserExist = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user.id)
+        .single();
+      if (isUserExist.data) {
+        router.push("/dashboard");
+        return;
+      }
       const { error: userError, data: userData } = await supabase
         .from("users")
         .insert({
