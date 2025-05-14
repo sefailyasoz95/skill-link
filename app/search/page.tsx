@@ -66,7 +66,14 @@ export default function SearchPage() {
     availability: undefined,
     terms: [],
   });
+  const [activeFilters, setActiveFilters] = useState<FiltersState>({
+    skills: [],
+    needs: [],
+    availability: undefined,
+    terms: [],
+  });
   const [allNeeds, setAllNeeds] = useState<string[]>([]);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -169,36 +176,54 @@ export default function SearchPage() {
           profile.skills?.some((skill) =>
             skill.name.toLowerCase().includes(query)
           ) ||
-          profile.collab_needs?.some((need) => need.conditions?.includes(query))
+          profile.collab_needs?.some((need) =>
+            need.conditions?.some((condition) =>
+              condition.toLowerCase().includes(query)
+            )
+          )
       );
     }
 
     // Apply filters
-    if (filters.skills.length) {
+    if (activeFilters.skills.length) {
       result = result.filter((profile) =>
-        profile.skills?.some((skill) => filters.skills.includes(skill.name))
+        profile.skills?.some((skill) =>
+          activeFilters.skills.includes(skill.name)
+        )
       );
     }
 
-    if (filters.needs.length) {
+    if (activeFilters.needs.length) {
       result = result.filter((profile) =>
         profile.collab_needs?.some((need) =>
-          // Check if any value in the conditions array matches any value in filters.needs
+          // Check if any value in the conditions array matches any value in activeFilters.needs
           need.conditions?.some((condition) =>
-            filters.needs.includes(condition)
+            activeFilters.needs.includes(condition)
           )
         )
       );
     }
 
-    if (filters.availability) {
+    // Add filter for collaboration terms
+    if (activeFilters.terms.length) {
+      result = result.filter((profile) =>
+        profile.collab_needs?.some((need) =>
+          // Check if any value in the conditions array matches any value in activeFilters.terms
+          need.conditions?.some((condition) =>
+            activeFilters.terms.includes(condition)
+          )
+        )
+      );
+    }
+
+    if (activeFilters.availability) {
       result = result.filter(
-        (profile) => profile.availability === filters.availability
+        (profile) => profile.availability === activeFilters.availability
       );
     }
 
     setFilteredProfiles(result);
-  }, [searchQuery, filters, profiles]);
+  }, [searchQuery, activeFilters, profiles]);
 
   const sendConnectionRequest = async (profileId: string) => {
     if (!user) return;
@@ -250,13 +275,22 @@ export default function SearchPage() {
     }
   };
 
+  const applyFilters = () => {
+    // Apply current filter state to active filters
+    setActiveFilters({ ...filters });
+    // Close the sheet
+    setSheetOpen(false);
+  };
+
   const resetFilters = () => {
-    setFilters({
+    const emptyFilters = {
       skills: [],
       needs: [],
       availability: undefined,
       terms: [],
-    });
+    };
+    setFilters(emptyFilters);
+    setActiveFilters(emptyFilters);
   };
 
   const toggleSkillFilter = (skill: string) => {
@@ -287,10 +321,10 @@ export default function SearchPage() {
   };
 
   const totalActiveFilters =
-    filters.skills.length +
-    filters.needs.length +
-    filters.terms.length +
-    (filters.availability ? 1 : 0);
+    activeFilters.skills.length +
+    activeFilters.needs.length +
+    activeFilters.terms.length +
+    (activeFilters.availability ? 1 : 0);
 
   return (
     <div className="container py-10">
@@ -316,9 +350,13 @@ export default function SearchPage() {
             />
           </div>
 
-          <Sheet>
+          <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
             <SheetTrigger asChild>
-              <Button variant="outline" className="sm:w-auto">
+              <Button
+                variant="outline"
+                className="sm:w-auto"
+                onClick={() => setSheetOpen(true)}
+              >
                 <Filter className="mr-2 h-4 w-4" />
                 Filter
                 {totalActiveFilters > 0 && (
@@ -457,7 +495,9 @@ export default function SearchPage() {
                   <Button variant="outline" onClick={resetFilters}>
                     Reset All
                   </Button>
-                  <Button type="submit">Apply Filters</Button>
+                  <Button type="button" onClick={applyFilters}>
+                    Apply Filters
+                  </Button>
                 </div>
               </div>
             </SheetContent>
