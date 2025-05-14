@@ -21,18 +21,35 @@ import {
   Link2,
   Calendar,
   Github,
+  UserPlus,
+  UserMinus,
+  UserCheck,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
-import { User as UserType, Skill, CollabNeed, Project } from "@/lib/types";
+import {
+  User as UserType,
+  Skill,
+  CollabNeed,
+  Project,
+  ConnectionStatus,
+} from "@/lib/types";
 
 interface ExtendedUserProfile extends UserType {
   skills: Skill[];
   collab_needs: CollabNeed[];
   projects: Project[];
 }
+
+// Define the connection state between the current user and the profile
+type ConnectionState = {
+  status: "not_connected" | "pending" | "connected";
+  connectionId?: string;
+  isRequestSent?: boolean; // True if current user sent the request
+};
 
 interface ProfileCardProps {
   userId?: string;
@@ -45,10 +62,54 @@ export default function ProfileCard({
 }: ProfileCardProps) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<ExtendedUserProfile | null>(null);
+  const [connectionState, setConnectionState] = useState<ConnectionState>({
+    status: "not_connected",
+  });
+  const [isLoadingConnection, setIsLoadingConnection] = useState(false);
 
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+
+  // Record that the current user viewed this profile
+  const recordProfileView = async (viewerId: string, viewedUserId: string) => {
+    try {
+      // Check if we've already recorded this view recently (last 24 hours)
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+      const { data: existingViews, error: checkError } = await supabase
+        .from("profile_views")
+        .select("*")
+        .eq("viewer_id", viewerId)
+        .eq("viewed_user_id", viewedUserId)
+        .gte("viewed_at", twentyFourHoursAgo.toISOString())
+        .limit(1);
+
+      if (checkError) {
+        console.error("Error checking existing views:", checkError);
+        return; // Silently fail for view recording
+      }
+
+      // Only record a new view if no recent views exist
+      if (!existingViews || existingViews.length === 0) {
+        const { error: insertError } = await supabase
+          .from("profile_views")
+          .insert({
+            viewer_id: viewerId,
+            viewed_user_id: viewedUserId,
+            viewed_at: new Date().toISOString(),
+          });
+
+        if (insertError) {
+          console.error("Error recording profile view:", insertError);
+        }
+      }
+    } catch (error) {
+      console.error("Error in recordProfileView:", error);
+      // Silently fail - we don't want to interrupt the user experience for view tracking
+    }
+  };
 
   useEffect(() => {
     // Determine which user ID to use for fetching
@@ -57,6 +118,11 @@ export default function ProfileCard({
     if (!targetUserId) {
       router.push("/auth/signin");
       return;
+    }
+
+    // Record profile view if viewing someone else's profile
+    if (user?.id && userId && user.id !== userId) {
+      recordProfileView(user.id, userId);
     }
 
     const fetchProfile = async () => {
@@ -137,6 +203,11 @@ export default function ProfileCard({
 
         console.log("Complete profile data:", fullProfile);
         setProfile(fullProfile as ExtendedUserProfile);
+
+        // Check connection status if viewing someone else's profile
+        if (user?.id && userId && user.id !== userId) {
+          await checkConnectionStatus(user.id, userId);
+        }
       } catch (error: any) {
         console.error("Error in fetchProfile:", error);
         toast({
@@ -151,6 +222,157 @@ export default function ProfileCard({
 
     fetchProfile();
   }, [userId, user, router, toast]);
+
+  const checkConnectionStatus = async (
+    currentUserId: string,
+    targetUserId: string
+  ) => {
+    try {
+      // Check for existing connection in either direction
+      const { data: connectionData, error } = await supabase
+        .from("connections")
+        .select("*")
+        .or(
+          `and(user_a.eq.${currentUserId},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${currentUserId})`
+        )
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      if (connectionData && connectionData.length > 0) {
+        const connection = connectionData[0];
+
+        if (connection.status === "accepted") {
+          setConnectionState({
+            status: "connected",
+            connectionId: connection.id,
+          });
+        } else if (connection.status === "pending") {
+          setConnectionState({
+            status: "pending",
+            connectionId: connection.id,
+            isRequestSent: connection.user_a === currentUserId,
+          });
+        } else {
+          setConnectionState({ status: "not_connected" });
+        }
+      } else {
+        setConnectionState({ status: "not_connected" });
+      }
+    } catch (error: any) {
+      console.error("Error checking connection status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to check connection status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const sendConnectionRequest = async () => {
+    if (!user?.id || !userId) return;
+
+    setIsLoadingConnection(true);
+    try {
+      // Create new connection
+      const { data, error } = await supabase
+        .from("connections")
+        .insert({
+          user_a: user.id,
+          user_b: userId,
+          status: "pending",
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setConnectionState({
+        status: "pending",
+        connectionId: data.id,
+        isRequestSent: true,
+      });
+
+      toast({
+        title: "Connection Request Sent",
+        description: "Your connection request has been sent successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error sending connection request:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send connection request",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingConnection(false);
+    }
+  };
+
+  const removeConnection = async () => {
+    if (!connectionState.connectionId) return;
+
+    setIsLoadingConnection(true);
+    try {
+      // Delete or update connection based on your DB structure
+      const { error } = await supabase
+        .from("connections")
+        .delete()
+        .eq("id", connectionState.connectionId);
+
+      if (error) throw error;
+
+      setConnectionState({ status: "not_connected" });
+
+      toast({
+        title: "Connection Removed",
+        description: "The connection has been removed successfully.",
+      });
+    } catch (error: any) {
+      console.error("Error removing connection:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to remove connection",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingConnection(false);
+    }
+  };
+
+  const acceptConnectionRequest = async () => {
+    if (!connectionState.connectionId) return;
+
+    setIsLoadingConnection(true);
+    try {
+      const { error } = await supabase
+        .from("connections")
+        .update({ status: "accepted" })
+        .eq("id", connectionState.connectionId);
+
+      if (error) throw error;
+
+      setConnectionState({
+        status: "connected",
+        connectionId: connectionState.connectionId,
+      });
+
+      toast({
+        title: "Connection Accepted",
+        description: "You are now connected with this user.",
+      });
+    } catch (error: any) {
+      console.error("Error accepting connection:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to accept connection request",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingConnection(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -198,19 +420,76 @@ export default function ProfileCard({
   const isCurrentUser = !userId || userId === user?.id;
   const profileTitle = isCurrentUser ? "My Profile" : "User Profile";
 
+  // Connection button rendering helper
+  const renderConnectionButton = () => {
+    if (isCurrentUser) return null;
+
+    if (isLoadingConnection) {
+      return (
+        <Button disabled>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Loading
+        </Button>
+      );
+    }
+
+    switch (connectionState.status) {
+      case "not_connected":
+        return (
+          <Button onClick={sendConnectionRequest}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Connect
+          </Button>
+        );
+      case "pending":
+        if (connectionState.isRequestSent) {
+          return (
+            <Button variant="outline" disabled>
+              <Clock className="mr-2 h-4 w-4" />
+              Request Pending
+            </Button>
+          );
+        } else {
+          return (
+            <div className="flex gap-2">
+              <Button onClick={acceptConnectionRequest} variant="outline">
+                <UserCheck className="mr-2 h-4 w-4" />
+                Accept
+              </Button>
+              <Button onClick={removeConnection} variant="outline">
+                Decline
+              </Button>
+            </div>
+          );
+        }
+      case "connected":
+        return (
+          <Button variant="outline" onClick={removeConnection}>
+            <UserMinus className="mr-2 h-4 w-4" />
+            Remove Connection
+          </Button>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-6 md:space-y-8">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
           {profileTitle}
         </h1>
-        {showEditButton && isCurrentUser && (
-          <Button asChild>
-            <a href="/profile/edit">
-              <Edit className="mr-2 h-4 w-4" /> Edit Profile
-            </a>
-          </Button>
-        )}
+        <div className="flex gap-3">
+          {showEditButton && isCurrentUser && (
+            <Button asChild>
+              <a href="/profile/edit">
+                <Edit className="mr-2 h-4 w-4" /> Edit Profile
+              </a>
+            </Button>
+          )}
+          {renderConnectionButton()}
+        </div>
       </div>
 
       <Card className="overflow-hidden border rounded-xl">
