@@ -39,7 +39,6 @@ const profileFormSchema = z.object({
   bio: z.string().max(500, "Bio cannot exceed 500 characters").nullable(),
   skills: z.array(z.string()).min(1, "At least one skill is required"),
   collaboration_needs: z.array(z.string()),
-  collaboration_terms: z.array(z.string()),
   availability: z.string().nullable(),
   location: z.string().nullable(),
   past_projects: z
@@ -89,6 +88,7 @@ const skillOptions = [
   "Email Marketing",
 ];
 
+// Collaboration term options for future use
 const collaborationTermOptions = [
   "Revenue Share",
   "Equity",
@@ -124,7 +124,6 @@ export default function EditProfilePage() {
       bio: "",
       skills: [],
       collaboration_needs: [],
-      collaboration_terms: [],
       availability: null,
       location: "",
       past_projects: [],
@@ -207,52 +206,121 @@ export default function EditProfilePage() {
     }
 
     const fetchProfile = async () => {
+      console.log("Fetching profile data for user:", user.id);
       try {
-        // Initialize form with existing data
-        if (user) {
-          form.reset({
-            full_name: user.full_name || "",
-            profile_picture: user.profile_picture,
-            bio: user.bio || "",
-            skills: user.skills?.map((skill) => skill.name) || [],
-            collaboration_needs:
-              user.collab_needs?.map((col) => col.conditions) || [],
-            // collaboration_terms: user.collaboration_terms || [],
-            availability: user.availability || null,
-            location: user.location || "",
-            past_projects: user.projects || [],
-          });
+        // Fetch user basic info
+        console.log("Fetching basic user information...");
+        const { data: userData, error: userError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", user.id)
+          .single();
 
-          setAvatarUrl(user.profile_picture);
-          setPastProjects(user.projects || []);
-
-          // Add custom skills, needs, and terms
-          if (user.skills) {
-            const custom = user.skills.filter(
-              (skill) => !skillOptions.includes(skill.name)
-            );
-            const _custom = custom.map((x) => x.name);
-            setCustomSkills(_custom);
-          }
-
-          if (user.collab_needs) {
-            const custom = user.collab_needs
-              .filter((need) => !skillOptions.includes(need.conditions))
-              .map((x) => x.conditions);
-            setCustomNeeds(custom);
-          }
-
-          // if (user.collaboration_terms) {
-          //   const custom = user.collaboration_terms.filter(
-          //     (term: any) => !collaborationTermOptions.includes(term)
-          //   );
-          //   setCustomTerms(custom);
-          // }
+        if (userError) {
+          console.error("Error fetching user data:", userError);
+          throw userError;
         }
+        console.log("User data retrieved:", userData);
+
+        // Fetch user skills
+        console.log("Fetching user skills...");
+        const { data: skillsData, error: skillsError } = await supabase
+          .from("user_skills")
+          .select(
+            `
+            skill_id,
+            skills (
+              id,
+              name
+            )
+          `
+          )
+          .eq("user_id", user.id);
+
+        if (skillsError) {
+          console.error("Error fetching user skills:", skillsError);
+          throw skillsError;
+        }
+        console.log("User skills retrieved:", skillsData);
+
+        // Fetch collaboration needs
+        console.log("Fetching collaboration needs...");
+        const { data: needsData, error: needsError } = await supabase
+          .from("collab_needs")
+          .select("*")
+          .eq("user_id", user.id);
+
+        if (needsError) {
+          console.error("Error fetching collaboration needs:", needsError);
+          throw needsError;
+        }
+        console.log("Collaboration needs retrieved:", needsData);
+
+        // Fetch projects
+        console.log("Fetching user projects...");
+        const { data: projectsData, error: projectsError } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("user_id", user.id);
+
+        if (projectsError) {
+          console.error("Error fetching projects:", projectsError);
+          throw projectsError;
+        }
+        console.log("User projects retrieved:", projectsData);
+
+        // Initialize form with retrieved data
+        console.log("Initializing form with retrieved data...");
+        const skills = skillsData?.map((item) => item.skills) || [];
+        const needs = needsData || [];
+        const projects = projectsData || [];
+
+        console.log("Processed data for form:", {
+          skills,
+          needs,
+          projects,
+        });
+
+        form.reset({
+          full_name: userData.full_name || "",
+          profile_picture: userData.profile_picture,
+          bio: userData.bio || "",
+          skills: skills.map((skill: any) => skill.name),
+          collaboration_needs: needs.map((need: any) => need.conditions),
+          availability: userData.availability || null,
+          location: userData.location || "",
+          past_projects: projects,
+        });
+
+        setAvatarUrl(userData.profile_picture);
+        setPastProjects(projects);
+
+        // Add custom skills and needs
+        if (skills.length > 0) {
+          console.log("Processing custom skills...");
+          const custom = skills.filter(
+            (skill: any) => !skillOptions.includes(skill.name)
+          );
+          const _custom = custom.map((skill: any) => skill.name);
+          setCustomSkills(_custom);
+          console.log("Custom skills identified:", _custom);
+        }
+
+        if (needs.length > 0) {
+          console.log("Processing custom collaboration needs...");
+          const custom = needs
+            .filter((need: any) => !skillOptions.includes(need.conditions))
+            .map((x: any) => x.conditions);
+          setCustomNeeds(custom);
+          console.log("Custom collaboration needs identified:", custom);
+        }
+
+        console.log("Profile data loaded successfully");
       } catch (error: any) {
+        console.error("Error in fetchProfile:", error);
         toast({
           title: "Error",
-          description: error.message,
+          description: error.message || "Failed to load profile data",
           variant: "destructive",
         });
       } finally {
@@ -287,22 +355,218 @@ export default function EditProfilePage() {
   };
 
   const onSubmit = async (values: ProfileFormValues) => {
-    if (!user) return;
+    if (!user) {
+      console.log("No user found, aborting submission");
+      return;
+    }
 
     setSubmitting(true);
-
-    // Include past projects
-    values.past_projects = pastProjects.length ? pastProjects : null;
+    console.log("Starting profile update with values:", values);
+    console.log("Past projects to be saved:", pastProjects);
 
     try {
-      const { error } = await supabase.from("users").upsert({
-        id: user.id,
-        ...values,
-        updated_at: new Date().toISOString(),
-      });
+      // 1. Update the basic user information
+      console.log("Step 1: Updating basic user information");
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .upsert({
+          id: user.id,
+          full_name: values.full_name,
+          profile_picture: values.profile_picture,
+          bio: values.bio || null,
+          location: values.location || null,
+          availability: values.availability,
+          updated_at: new Date().toISOString(),
+        })
+        .select();
 
-      if (error) throw error;
+      if (userError) {
+        console.error("Error updating user data:", userError);
+        throw userError;
+      }
+      console.log("Basic user information updated successfully:", userData);
 
+      // 2. Handle skills - first delete existing skills for this user
+      console.log("Step 2: Handling skills");
+      console.log("Step 2.1: Deleting existing user skills");
+      const { error: skillDeleteError } = await supabase
+        .from("user_skills")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (skillDeleteError) {
+        console.error("Error deleting skills:", skillDeleteError);
+        throw skillDeleteError;
+      }
+      console.log("Existing skills deleted successfully");
+
+      // Insert new skills
+      if (values.skills && values.skills.length > 0) {
+        console.log("Step 2.2: Processing new skills:", values.skills);
+
+        // First ensure all skills exist in the skills table
+        for (const skillName of values.skills) {
+          console.log(`Processing skill: ${skillName}`);
+
+          // Try to find existing skill
+          let skillId;
+          const { data: existingSkill, error: findError } = await supabase
+            .from("skills")
+            .select("id")
+            .eq("name", skillName)
+            .single();
+
+          if (findError && findError.code !== "PGRST116") {
+            console.error(`Error finding skill ${skillName}:`, findError);
+            throw findError;
+          }
+
+          if (existingSkill) {
+            console.log(
+              `Found existing skill ${skillName} with ID ${existingSkill.id}`
+            );
+            skillId = existingSkill.id;
+          } else {
+            console.log(`Creating new skill: ${skillName}`);
+            // Create new skill
+            const { data: newSkill, error: createError } = await supabase
+              .from("skills")
+              .insert({ name: skillName })
+              .select("id")
+              .single();
+
+            if (createError) {
+              console.error(`Error creating skill ${skillName}:`, createError);
+              throw createError;
+            }
+
+            console.log(
+              `Created new skill ${skillName} with ID ${newSkill.id}`
+            );
+            skillId = newSkill.id;
+          }
+
+          // Now insert the user_skill relationship
+          console.log(`Adding user-skill relationship for skill ID ${skillId}`);
+          const { error: linkError } = await supabase
+            .from("user_skills")
+            .insert({
+              user_id: user.id,
+              skill_id: skillId,
+            });
+
+          if (linkError) {
+            console.error(
+              `Error linking user to skill ${skillName}:`,
+              linkError
+            );
+            throw linkError;
+          }
+
+          console.log(`Successfully linked user to skill ${skillName}`);
+        }
+
+        console.log("All skills processed successfully");
+      } else {
+        console.log("No skills to add");
+      }
+
+      // 3. Handle collaboration needs
+      console.log("Step 3: Handling collaboration needs");
+      console.log("Step 3.1: Deleting existing collaboration needs");
+      const { error: needsDeleteError } = await supabase
+        .from("collab_needs")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (needsDeleteError) {
+        console.error("Error deleting collaboration needs:", needsDeleteError);
+        throw needsDeleteError;
+      }
+      console.log("Existing collaboration needs deleted successfully");
+
+      // Insert new collaboration needs
+      if (values.collaboration_needs && values.collaboration_needs.length > 0) {
+        console.log(
+          "Step 3.2: Adding new collaboration needs:",
+          values.collaboration_needs
+        );
+
+        for (const needText of values.collaboration_needs) {
+          console.log(`Adding collaboration need: ${needText}`);
+          const { error: addNeedError } = await supabase
+            .from("collab_needs")
+            .insert({
+              user_id: user.id,
+              conditions: needText,
+            });
+
+          if (addNeedError) {
+            console.error(
+              `Error adding collaboration need ${needText}:`,
+              addNeedError
+            );
+            throw addNeedError;
+          }
+
+          console.log(`Successfully added collaboration need: ${needText}`);
+        }
+
+        console.log("All collaboration needs added successfully");
+      } else {
+        console.log("No collaboration needs to add");
+      }
+
+      // 4. Handle past projects
+      console.log("Step 4: Handling past projects");
+      console.log("Step 4.1: Deleting existing projects");
+      const { error: projectsDeleteError } = await supabase
+        .from("projects")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (projectsDeleteError) {
+        console.error("Error deleting projects:", projectsDeleteError);
+        throw projectsDeleteError;
+      }
+      console.log("Existing projects deleted successfully");
+
+      // Insert new projects
+      const validProjects = pastProjects.filter((project) =>
+        project.title.trim()
+      );
+      if (validProjects.length > 0) {
+        console.log("Step 4.2: Adding new projects:", validProjects);
+
+        for (const project of validProjects) {
+          console.log(`Adding project: ${project.title}`);
+          const { error: addProjectError } = await supabase
+            .from("projects")
+            .insert({
+              user_id: user.id,
+              title: project.title,
+              description: project.description,
+              url: project.url,
+              created_at: new Date().toISOString(),
+            });
+
+          if (addProjectError) {
+            console.error(
+              `Error adding project ${project.title}:`,
+              addProjectError
+            );
+            throw addProjectError;
+          }
+
+          console.log(`Successfully added project: ${project.title}`);
+        }
+
+        console.log("All projects added successfully");
+      } else {
+        console.log("No valid projects to add");
+      }
+
+      console.log("Profile update completed successfully!");
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated",
@@ -310,9 +574,10 @@ export default function EditProfilePage() {
 
       router.push("/profile");
     } catch (error: any) {
+      console.error("Profile update failed:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update profile",
         variant: "destructive",
       });
     } finally {
@@ -597,39 +862,6 @@ export default function EditProfilePage() {
                         </FormControl>
                         <FormDescription>
                           Select the skills you're looking for in collaborators
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="collaboration_terms"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Collaboration Terms</FormLabel>
-                        <FormControl>
-                          <MultiSelect
-                            placeholder="Select or create terms"
-                            options={[
-                              ...collaborationTermOptions,
-                              ...customTerms,
-                            ].map((term) => ({
-                              label: term,
-                              value: term,
-                            }))}
-                            selected={field.value || []}
-                            onChange={field.onChange}
-                            creatable
-                            onCreateOption={(newTerm) => {
-                              setCustomTerms((prev) => [...prev, newTerm]);
-                              field.onChange([...(field.value || []), newTerm]);
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Select the collaboration terms you're open to
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
