@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase-client";
@@ -19,7 +19,14 @@ import { ArrowLeft, Send, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { User } from "@/lib/types";
 
-export default function NewMessagePage({ params }: { params: { id: string } }) {
+export default function NewMessagePage() {
+  // Get params using the hook instead of props
+  const params = useParams();
+  // Extract the recipient ID safely - ensure it's a string
+  const recipientId = Array.isArray(params?.id)
+    ? params.id[0]
+    : (params?.id as string);
+
   const [recipientUser, setRecipientUser] = useState<User | null>(null);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -33,13 +40,13 @@ export default function NewMessagePage({ params }: { params: { id: string } }) {
   // Get the recipient user data
   useEffect(() => {
     async function fetchRecipientUser() {
-      if (!params.id) return;
+      if (!recipientId) return;
 
       try {
         const { data, error } = await supabase
           .from("users")
           .select("id, full_name, username, profile_picture, bio")
-          .eq("id", params.id)
+          .eq("id", recipientId)
           .single();
 
         if (error) {
@@ -69,7 +76,7 @@ export default function NewMessagePage({ params }: { params: { id: string } }) {
     }
 
     fetchRecipientUser();
-  }, [params.id, router, toast, user]);
+  }, [recipientId, router, toast, user]);
 
   // Check if there's an existing chat between these users
   useEffect(() => {
