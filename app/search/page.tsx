@@ -42,29 +42,19 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/auth-provider";
-
-type Profile = {
-  id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  skills: string[] | null;
-  collaboration_needs: string[] | null;
-  collaboration_terms: string[] | null;
-  availability: string | null;
-};
+import { User as UserType } from "@/lib/types";
 
 type FiltersState = {
   skills: string[];
   needs: string[];
-  availability: string | null;
+  availability: string | undefined;
   terms: string[];
 };
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<UserType[]>([]);
+  const [filteredProfiles, setFilteredProfiles] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
   const [sendingConnection, setSendingConnection] = useState<string | null>(
     null
@@ -72,7 +62,7 @@ export default function SearchPage() {
   const [filters, setFilters] = useState<FiltersState>({
     skills: [],
     needs: [],
-    availability: null,
+    availability: undefined,
     terms: [],
   });
   const [allSkills, setAllSkills] = useState<string[]>([]);
@@ -82,49 +72,48 @@ export default function SearchPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const fetchProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .neq("id", user?.id);
+
+      if (error) throw error;
+
+      setProfiles(data || []);
+      setFilteredProfiles(data || []);
+
+      // Extract all unique skills, needs, and terms for filters
+      const skills = new Set<string>();
+      const needs = new Set<string>();
+      const terms = new Set<string>();
+
+      data?.forEach((profile) => {
+        profile.skills?.forEach((skill: any) => skills.add(skill));
+        profile.collab_needs?.forEach((need: any) => needs.add(need));
+        profile.collaboration_terms?.forEach((term: any) => terms.add(term));
+      });
+
+      setAllSkills(Array.from(skills));
+      setAllNeeds(Array.from(needs));
+      setAllTerms(Array.from(terms));
+    } catch (error: any) {
+      toast({
+        title: "Error fetching profiles",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) {
       router.push("/auth/signin");
       return;
     }
-
-    const fetchProfiles = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .neq("id", user.id);
-
-        if (error) throw error;
-
-        setProfiles(data || []);
-        setFilteredProfiles(data || []);
-
-        // Extract all unique skills, needs, and terms for filters
-        const skills = new Set<string>();
-        const needs = new Set<string>();
-        const terms = new Set<string>();
-
-        data?.forEach((profile) => {
-          profile.skills?.forEach((skill: any) => skills.add(skill));
-          profile.collaboration_needs?.forEach((need: any) => needs.add(need));
-          profile.collaboration_terms?.forEach((term: any) => terms.add(term));
-        });
-
-        setAllSkills(Array.from(skills));
-        setAllNeeds(Array.from(needs));
-        setAllTerms(Array.from(terms));
-      } catch (error: any) {
-        toast({
-          title: "Error fetching profiles",
-          description: error.message,
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
 
     fetchProfiles();
   }, [user, router, toast]);
@@ -143,10 +132,10 @@ export default function SearchPage() {
           profile.full_name?.toLowerCase().includes(query) ||
           profile.bio?.toLowerCase().includes(query) ||
           profile.skills?.some((skill) =>
-            skill.toLowerCase().includes(query)
+            skill.name.toLowerCase().includes(query)
           ) ||
-          profile.collaboration_needs?.some((need) =>
-            need.toLowerCase().includes(query)
+          profile.collab_needs?.some((need) =>
+            need.conditions?.toLowerCase().includes(query)
           )
       );
     }
@@ -154,25 +143,25 @@ export default function SearchPage() {
     // Apply filters
     if (filters.skills.length) {
       result = result.filter((profile) =>
-        profile.skills?.some((skill) => filters.skills.includes(skill))
+        profile.skills?.some((skill) => filters.skills.includes(skill.name))
       );
     }
 
     if (filters.needs.length) {
       result = result.filter((profile) =>
-        profile.collaboration_needs?.some((need) =>
-          filters.needs.includes(need)
+        profile.collab_needs?.some((need) =>
+          filters.needs.includes(need.conditions ?? "")
         )
       );
     }
 
-    if (filters.terms.length) {
-      result = result.filter((profile) =>
-        profile.collaboration_terms?.some((term) =>
-          filters.terms.includes(term)
-        )
-      );
-    }
+    // if (filters.terms.length) {
+    //   result = result.filter((profile) =>
+    //     profile.?.some((term) =>
+    //       filters.terms.includes(term)
+    //     )
+    //   );
+    // }
 
     if (filters.availability) {
       result = result.filter(
@@ -237,7 +226,7 @@ export default function SearchPage() {
     setFilters({
       skills: [],
       needs: [],
-      availability: null,
+      availability: undefined,
       terms: [],
     });
   };
@@ -336,21 +325,30 @@ export default function SearchPage() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    {allSkills.slice(0, 10).map((skill) => (
-                      <div key={skill} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`skill-${skill}`}
-                          checked={filters.skills.includes(skill)}
-                          onCheckedChange={() => toggleSkillFilter(skill)}
-                        />
-                        <Label
-                          htmlFor={`skill-${skill}`}
-                          className="text-sm font-normal"
+                    {allSkills.length > 0 ? (
+                      allSkills.map((skill) => (
+                        <div
+                          key={skill}
+                          className="flex items-center space-x-2"
                         >
-                          {skill}
-                        </Label>
+                          <Checkbox
+                            id={`skill-${skill}`}
+                            checked={filters.skills.includes(skill)}
+                            onCheckedChange={() => toggleSkillFilter(skill)}
+                          />
+                          <Label
+                            htmlFor={`skill-${skill}`}
+                            className="text-sm font-normal"
+                          >
+                            {skill}
+                          </Label>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex items-center space-x-2 text-xs italic text-destructive">
+                        No options to show, make sure you updated your profile
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
@@ -373,21 +371,27 @@ export default function SearchPage() {
                     )}
                   </div>
                   <div className="space-y-2">
-                    {allNeeds.slice(0, 10).map((need) => (
-                      <div key={need} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`need-${need}`}
-                          checked={filters.needs.includes(need)}
-                          onCheckedChange={() => toggleNeedFilter(need)}
-                        />
-                        <Label
-                          htmlFor={`need-${need}`}
-                          className="text-sm font-normal"
-                        >
-                          {need}
-                        </Label>
+                    {allNeeds.length > 0 ? (
+                      allNeeds.map((need) => (
+                        <div key={need} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`need-${need}`}
+                            checked={filters.needs.includes(need)}
+                            onCheckedChange={() => toggleNeedFilter(need)}
+                          />
+                          <Label
+                            htmlFor={`need-${need}`}
+                            className="text-sm font-normal"
+                          >
+                            {need}
+                          </Label>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex items-center space-x-2 text-xs italic text-destructive">
+                        No options to show, make sure you updated your profile
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
@@ -403,7 +407,7 @@ export default function SearchPage() {
                         onClick={() =>
                           setFilters((prev) => ({
                             ...prev,
-                            availability: null,
+                            availability: undefined,
                           }))
                         }
                         className="h-auto py-1 text-xs"
@@ -413,11 +417,11 @@ export default function SearchPage() {
                     )}
                   </div>
                   <Select
-                    value={filters.availability || ""}
+                    value={filters.availability}
                     onValueChange={(value) =>
                       setFilters((prev) => ({
                         ...prev,
-                        availability: value || null,
+                        availability: value || undefined,
                       }))
                     }
                   >
@@ -425,7 +429,7 @@ export default function SearchPage() {
                       <SelectValue placeholder="Select availability" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any availability</SelectItem>
+                      <SelectItem value="Any">Any availability</SelectItem>
                       <SelectItem value="Full-time">Full-time</SelectItem>
                       <SelectItem value="Part-time">Part-time</SelectItem>
                       <SelectItem value="Project-based">
@@ -524,9 +528,9 @@ export default function SearchPage() {
                     <CardHeader>
                       <div className="flex items-center space-x-4">
                         <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          {profile.avatar_url ? (
+                          {profile.profile_picture ? (
                             <img
-                              src={profile.avatar_url}
+                              src={profile.profile_picture}
                               alt={profile.full_name || "Profile"}
                               className="h-12 w-12 rounded-full object-cover"
                             />
@@ -551,7 +555,7 @@ export default function SearchPage() {
                         <div className="mt-2 flex flex-wrap gap-1">
                           {profile.skills?.slice(0, 4).map((skill, i) => (
                             <Badge key={i} variant="secondary">
-                              {skill}
+                              {skill.name}
                             </Badge>
                           ))}
                           {profile.skills && profile.skills.length > 4 && (
@@ -561,22 +565,22 @@ export default function SearchPage() {
                           )}
                         </div>
                       </div>
-                      {profile.collaboration_needs &&
-                        profile.collaboration_needs.length > 0 && (
+                      {profile.collab_needs &&
+                        profile.collab_needs.length > 0 && (
                           <div>
                             <h4 className="text-sm font-medium">Looking for</h4>
                             <div className="mt-1 flex flex-wrap gap-1">
-                              {profile.collaboration_needs
+                              {profile.collab_needs
                                 ?.slice(0, 2)
                                 .map((need, i) => (
                                   <Badge key={i} variant="outline">
-                                    {need}
+                                    {need.conditions}
                                   </Badge>
                                 ))}
-                              {profile.collaboration_needs &&
-                                profile.collaboration_needs.length > 2 && (
+                              {profile.collab_needs &&
+                                profile.collab_needs.length > 2 && (
                                   <Badge variant="outline">
-                                    +{profile.collaboration_needs.length - 2}
+                                    +{profile.collab_needs.length - 2}
                                   </Badge>
                                 )}
                             </div>
@@ -646,9 +650,9 @@ export default function SearchPage() {
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center space-x-4">
                           <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                            {profile.avatar_url ? (
+                            {profile.profile_picture ? (
                               <img
-                                src={profile.avatar_url}
+                                src={profile.profile_picture}
                                 alt={profile.full_name || "Profile"}
                                 className="h-12 w-12 rounded-full object-cover"
                               />
@@ -669,7 +673,7 @@ export default function SearchPage() {
                         <div className="mt-4 sm:mt-0 flex flex-wrap gap-1">
                           {profile.skills?.slice(0, 3).map((skill, i) => (
                             <Badge key={i} variant="secondary">
-                              {skill}
+                              {skill.name}
                             </Badge>
                           ))}
                           {profile.skills && profile.skills.length > 3 && (
@@ -690,17 +694,17 @@ export default function SearchPage() {
                             Looking for:
                           </span>
                           <div className="flex flex-wrap gap-1">
-                            {profile.collaboration_needs
+                            {profile.collab_needs
                               ?.slice(0, 2)
                               .map((need, i) => (
                                 <Badge key={i} variant="outline">
-                                  {need}
+                                  {need.conditions}
                                 </Badge>
                               ))}
-                            {profile.collaboration_needs &&
-                              profile.collaboration_needs.length > 2 && (
+                            {profile.collab_needs &&
+                              profile.collab_needs.length > 2 && (
                                 <Badge variant="outline">
-                                  +{profile.collaboration_needs.length - 2}
+                                  +{profile.collab_needs.length - 2}
                                 </Badge>
                               )}
                           </div>

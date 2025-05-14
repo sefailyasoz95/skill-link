@@ -29,17 +29,17 @@ import { supabase } from "@/lib/supabase-client";
 import { useToast } from "@/hooks/use-toast";
 import { MultiSelect } from "@/components/multi-select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { PlusCircle, X, AlertCircle, Loader2 } from "lucide-react";
+import { PlusCircle, X, Loader2 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useAuth } from "@/components/auth-provider";
 
 const profileFormSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
-  avatar_url: z.string().nullable(),
+  profile_picture: z.string().nullable(),
   bio: z.string().max(500, "Bio cannot exceed 500 characters").nullable(),
   skills: z.array(z.string()).min(1, "At least one skill is required"),
-  collaboration_needs: z.array(z.string()).nullable(),
-  collaboration_terms: z.array(z.string()).nullable(),
+  collaboration_needs: z.array(z.string()),
+  collaboration_terms: z.array(z.string()),
   availability: z.string().nullable(),
   location: z.string().nullable(),
   past_projects: z
@@ -120,7 +120,7 @@ export default function EditProfilePage() {
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       full_name: "",
-      avatar_url: null,
+      profile_picture: null,
       bio: "",
       skills: [],
       collaboration_needs: [],
@@ -174,7 +174,7 @@ export default function EditProfilePage() {
 
         const url = data.publicUrl;
         setAvatarUrl(url);
-        form.setValue("avatar_url", url);
+        form.setValue("profile_picture", url);
 
         toast({
           title: "Avatar uploaded",
@@ -208,59 +208,46 @@ export default function EditProfilePage() {
 
     const fetchProfile = async () => {
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (error) {
-          if (error.code !== "PGRST116") {
-            throw error;
-          }
-          // Profile doesn't exist yet, use defaults
-          setLoading(false);
-          return;
-        }
-
         // Initialize form with existing data
-        if (data) {
+        if (user) {
           form.reset({
-            full_name: data.full_name || "",
-            avatar_url: data.avatar_url,
-            bio: data.bio || "",
-            skills: data.skills || [],
-            collaboration_needs: data.collaboration_needs || [],
-            collaboration_terms: data.collaboration_terms || [],
-            availability: data.availability || null,
-            location: data.location || "",
-            past_projects: data.past_projects || [],
+            full_name: user.full_name || "",
+            profile_picture: user.profile_picture,
+            bio: user.bio || "",
+            skills: user.skills?.map((skill) => skill.name) || [],
+            collaboration_needs:
+              user.collab_needs?.map((col) => col.conditions) || [],
+            // collaboration_terms: user.collaboration_terms || [],
+            availability: user.availability || null,
+            location: user.location || "",
+            past_projects: user.projects || [],
           });
 
-          setAvatarUrl(data.avatar_url);
-          setPastProjects(data.past_projects || []);
+          setAvatarUrl(user.profile_picture);
+          setPastProjects(user.projects || []);
 
           // Add custom skills, needs, and terms
-          if (data.skills) {
-            const custom = data.skills.filter(
-              (skill: any) => !skillOptions.includes(skill)
+          if (user.skills) {
+            const custom = user.skills.filter(
+              (skill) => !skillOptions.includes(skill.name)
             );
-            setCustomSkills(custom);
+            const _custom = custom.map((x) => x.name);
+            setCustomSkills(_custom);
           }
 
-          if (data.collaboration_needs) {
-            const custom = data.collaboration_needs.filter(
-              (need: any) => !skillOptions.includes(need)
-            );
+          if (user.collab_needs) {
+            const custom = user.collab_needs
+              .filter((need) => !skillOptions.includes(need.conditions))
+              .map((x) => x.conditions);
             setCustomNeeds(custom);
           }
 
-          if (data.collaboration_terms) {
-            const custom = data.collaboration_terms.filter(
-              (term: any) => !collaborationTermOptions.includes(term)
-            );
-            setCustomTerms(custom);
-          }
+          // if (user.collaboration_terms) {
+          //   const custom = user.collaboration_terms.filter(
+          //     (term: any) => !collaborationTermOptions.includes(term)
+          //   );
+          //   setCustomTerms(custom);
+          // }
         }
       } catch (error: any) {
         toast({
@@ -308,7 +295,7 @@ export default function EditProfilePage() {
     values.past_projects = pastProjects.length ? pastProjects : null;
 
     try {
-      const { error } = await supabase.from("profiles").upsert({
+      const { error } = await supabase.from("users").upsert({
         id: user.id,
         ...values,
         updated_at: new Date().toISOString(),
@@ -343,7 +330,7 @@ export default function EditProfilePage() {
                 <div className="h-7 w-1/3 animate-pulse rounded-lg bg-muted" />
               </CardTitle>
               <CardDescription>
-                <div className="h-5 w-2/3 animate-pulse rounded-lg bg-muted" />
+                <span className="h-5 w-2/3 animate-pulse rounded-lg bg-muted" />
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -379,7 +366,7 @@ export default function EditProfilePage() {
 
                   <FormField
                     control={form.control}
-                    name="avatar_url"
+                    name="profile_picture"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Profile Picture</FormLabel>

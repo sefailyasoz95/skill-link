@@ -55,13 +55,18 @@ export function MultiSelect({
     if (!inputValue) return;
     if (selected.includes(inputValue)) return;
     if (options.find((opt) => opt.value === inputValue)) return;
-    
+
     onCreateOption?.(inputValue);
     setInputValue("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" && creatable && inputValue && !options.find((opt) => opt.value === inputValue)) {
+    if (
+      e.key === "Enter" &&
+      creatable &&
+      inputValue &&
+      !options.find((opt) => opt.value === inputValue)
+    ) {
       e.preventDefault();
       handleCreateOption();
     }
@@ -83,13 +88,9 @@ export function MultiSelect({
           <div className="flex flex-wrap gap-1">
             {selected.length > 0 ? (
               selected.map((value) => (
-                <Badge
-                  key={value}
-                  variant="secondary"
-                  className="mr-1 mb-1"
-                >
+                <Badge key={value} variant="secondary" className="mr-1 mb-1">
                   {value}
-                  <button
+                  <span
                     className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -103,11 +104,13 @@ export function MultiSelect({
                     onClick={() => handleUnselect(value)}
                   >
                     <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
-                  </button>
+                  </span>
                 </Badge>
               ))
             ) : (
-              <span className="text-sm text-muted-foreground">{placeholder}</span>
+              <span className="text-sm text-muted-foreground">
+                {placeholder}
+              </span>
             )}
           </div>
           <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
@@ -115,8 +118,8 @@ export function MultiSelect({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0">
         <Command onKeyDown={handleKeyDown}>
-          <CommandInput 
-            placeholder="Search..." 
+          <CommandInput
+            placeholder="Search..."
             value={inputValue}
             onValueChange={setInputValue}
           />
@@ -141,7 +144,9 @@ export function MultiSelect({
                     key={option.value}
                     onSelect={() => {
                       if (isSelected) {
-                        onChange(selected.filter((item) => item !== option.value));
+                        onChange(
+                          selected.filter((item) => item !== option.value)
+                        );
                       } else {
                         onChange([...selected, option.value]);
                       }
@@ -162,18 +167,18 @@ export function MultiSelect({
                 );
               })}
             </CommandGroup>
-            {creatable && inputValue && !options.find((opt) => opt.value === inputValue) && (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={handleCreateOption}
-                  >
-                    <span>Create "{inputValue}"</span>
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            )}
+            {creatable &&
+              inputValue &&
+              !options.find((opt) => opt.value === inputValue) && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem onSelect={handleCreateOption}>
+                      <span>Create "{inputValue}"</span>
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              )}
           </CommandList>
         </Command>
       </PopoverContent>

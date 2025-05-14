@@ -19,40 +19,21 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
-
-type Profile = {
-  id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-};
-
-type Message = {
-  id: string;
-  created_at: string;
-  sender_id: string;
-  recipient_id: string;
-  content: string;
-  read: boolean;
-};
-
-type Conversation = {
-  profile: Profile;
-  lastMessage: {
-    content: string;
-    created_at: string;
-    is_sender: boolean;
-    read: boolean;
-  };
-  unreadCount: number;
-};
+import {
+  Chat,
+  ChatMember,
+  ConversationDisplayItem,
+  Message,
+  User as UserType,
+} from "@/lib/types";
 
 export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [filteredConversations, setFilteredConversations] = useState<
-    Conversation[]
-  >([]);
-  const [connections, setConnections] = useState<Profile[]>([]);
+  const [conversations, setConversations] = useState<Chat[]>([]);
+  const [filteredConversations, setFilteredConversations] = useState<Chat[]>(
+    []
+  );
+  const [connections, setConnections] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
 
   const { user } = useAuth();
@@ -66,133 +47,204 @@ export default function MessagesPage() {
     }
 
     const fetchConversations = async () => {
+      if (!user || !user.id) {
+        toast({
+          title: "Authentication Error",
+          description: "Current user not found. Please log in.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
       try {
-        // Fetch all messages where the user is either sender or recipient
-        const { data: messagesData, error: messagesError } = await supabase
-          .from("messages")
-          .select("*")
-          .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-          .order("created_at", { ascending: false });
+        // 1. Fetch chats the current user is a member of,
+        //    along with their members (and their user profiles),
+        //    and the latest message for each chat (and its sender's profile).
+        const { data: userChatMemberships, error: chatMembershipsError } =
+          await supabase
+            .from("chat_members")
+            .select(
+              `
+        chat:chats!inner (
+          id,
+          is_group,
+          name,
+          created_at,
+          chat_members (
+            user_id,
+            user:users (
+              id,
+              full_name,
+              username,
+              profile_picture
+            )
+          ),
+          messages (
+            id,
+            content,
+            sent_at,
+            sender_id,
+            sender:users (
+              id,
+              full_name,
+              username,
+              profile_picture
+            ),
+            order:sent_at.desc,
+            limit:1
+          )
+        )
+      `
+            )
+            .eq("user_id", user.id);
 
-        if (messagesError) throw messagesError;
+        if (chatMembershipsError) throw chatMembershipsError;
 
-        // Get unique user IDs from the messages (excluding the current user)
-        const userIds = new Set<string>();
-        messagesData?.forEach((msg) => {
-          if (msg.sender_id !== user.id) userIds.add(msg.sender_id);
-          if (msg.recipient_id !== user.id) userIds.add(msg.recipient_id);
+        const conversations: ConversationDisplayItem[] = (
+          userChatMemberships || []
+        )
+          .map((membership) => {
+            const chat = membership.chat as Chat & {
+              chat_members: (ChatMember & { user: UserType | null })[];
+            } & { messages: (Message & { sender: UserType | null })[] | null };
+
+            if (!chat) return null; // Should not happen with !inner
+
+            const lastMessageData =
+              chat.messages && chat.messages.length > 0
+                ? chat.messages[0]
+                : null;
+
+            const allParticipants = (chat.chat_members || [])
+              .map((cm) => cm.user)
+              .filter((user) => user !== null) as UserType[];
+
+            const otherParticipants = allParticipants.filter(
+              (p) => p.id !== user.id
+            );
+
+            let conversationName = chat.name;
+            if (
+              !chat.is_group &&
+              !conversationName &&
+              otherParticipants.length > 0
+            ) {
+              conversationName = otherParticipants
+                .map((p) => p.full_name || p.username)
+                .join(", ");
+            } else if (chat.is_group && !conversationName) {
+              conversationName = "Group Chat"; // Default group name
+            }
+
+            return {
+              id: chat.id,
+              is_group: chat.is_group,
+              name: conversationName,
+              lastMessage: lastMessageData
+                ? {
+                    id: lastMessageData.id,
+                    content: lastMessageData.content,
+                    sent_at: lastMessageData.sent_at,
+                    sender: lastMessageData.sender,
+                    is_sender: lastMessageData.sender_id === user.id,
+                  }
+                : null,
+              participants: allParticipants,
+              otherParticipants: otherParticipants,
+              unreadCount: 0, // TODO: Implement unread count logic. This usually requires more info.
+              // e.g., a `last_read_at` timestamp for the user in this chat,
+              // or individual message read statuses.
+              created_at: chat.created_at,
+            };
+          })
+          .filter(
+            (c) => c !== null && c.lastMessage !== null
+          ) as ConversationDisplayItem[]; // Filter out chats without messages if desired
+
+        // Sort conversations by the last message's sent_at time, descending
+        const sortedConversations = conversations.sort((a, b) => {
+          if (!a.lastMessage && !b.lastMessage) return 0;
+          if (!a.lastMessage) return 1; // a comes after b if a has no message
+          if (!b.lastMessage) return -1; // b comes after a if b has no message
+          return (
+            new Date(b.lastMessage.sent_at).getTime() -
+            new Date(a.lastMessage.sent_at).getTime()
+          );
         });
 
-        // Fetch profiles for these users
-        if (userIds.size > 0) {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from("profiles")
-            .select("id, full_name, avatar_url")
-            .in("id", Array.from(userIds));
+        setConversations(sortedConversations);
+        setFilteredConversations(sortedConversations); // Initially, filtered is all
 
-          if (profilesError) throw profilesError;
-
-          // Create conversations based on the last message
-          const conversationsMap = new Map<string, Conversation>();
-          const profiles = profilesData || [];
-
-          messagesData?.forEach((message) => {
-            const otherUserId =
-              message.sender_id === user.id
-                ? message.recipient_id
-                : message.sender_id;
-            const profile = profiles.find((p) => p.id === otherUserId);
-
-            if (!profile) return;
-
-            if (!conversationsMap.has(otherUserId)) {
-              conversationsMap.set(otherUserId, {
-                profile,
-                lastMessage: {
-                  content: message.content,
-                  created_at: message.created_at,
-                  is_sender: message.sender_id === user.id,
-                  read: message.read,
-                },
-                unreadCount:
-                  message.sender_id !== user.id && !message.read ? 1 : 0,
-              });
-            } else if (message.sender_id !== user.id && !message.read) {
-              // Count unread messages
-              const conversation = conversationsMap.get(otherUserId)!;
-              conversation.unreadCount++;
-              conversationsMap.set(otherUserId, conversation);
-            }
-          });
-
-          const sortedConversations = Array.from(
-            conversationsMap.values()
-          ).sort((a, b) => {
-            return (
-              new Date(b.lastMessage.created_at).getTime() -
-              new Date(a.lastMessage.created_at).getTime()
-            );
-          });
-
-          setConversations(sortedConversations);
-          setFilteredConversations(sortedConversations);
-        }
-
-        // Fetch all connections to display in the "New Message" tab
+        // 2. Fetch connections to display in the "New Message" tab
+        // These are users the current user has an "accepted" connection with.
         const { data: connectionsData, error: connectionsError } =
           await supabase
             .from("connections")
             .select(
               `
-            user_id_1, user_id_2,
-            profiles!connections_user_id_2_fkey (id, full_name, avatar_url)
-          `
+        id,
+        status,
+        user_a,
+        user_b,
+        userA:users!connections_user_a_fkey (
+          id,
+          full_name,
+          username,
+          profile_picture,
+          bio,
+          location,
+          availability,
+          created_at
+        ),
+        userB:users!connections_user_b_fkey (
+          id,
+          full_name,
+          username,
+          profile_picture,
+          bio,
+          location,
+          availability,
+          created_at
+        )
+      `
             )
-            .eq("user_id_1", user.id)
-            .eq("status", "connected");
+            .or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+            .eq("status", "accepted");
 
         if (connectionsError) throw connectionsError;
 
-        // Also fetch connections where the user is user_id_2
-        const { data: connectionsData2, error: connectionsError2 } =
-          await supabase
-            .from("connections")
-            .select(
-              `
-            user_id_1, user_id_2,
-            profiles!connections_user_id_1_fkey (id, full_name, avatar_url)
-          `
-            )
-            .eq("user_id_2", user.id)
-            .eq("status", "connected");
+        const connectedUsersList: UserType[] = [];
+        const seenUserIds = new Set<string>();
 
-        if (connectionsError2) throw connectionsError2;
+        connectionsData.forEach((conn) => {
+          const userADetails = conn.userA as any;
+          const userBDetails = conn.userB as any;
 
-        // Combine and deduplicate connections
-        const allConnections: Profile[] = [];
-        connectionsData?.forEach((conn) => {
-          if (conn.profiles) {
-            // allConnections.push(conn.profiles as Profile);
+          if (
+            conn.user_a === user.id &&
+            userBDetails &&
+            !seenUserIds.has(userBDetails.id)
+          ) {
+            connectedUsersList.push(userBDetails);
+            seenUserIds.add(userBDetails.id);
+          } else if (
+            conn.user_b === user.id &&
+            userADetails &&
+            !seenUserIds.has(userADetails.id)
+          ) {
+            connectedUsersList.push(userADetails);
+            seenUserIds.add(userADetails.id);
           }
         });
 
-        connectionsData2?.forEach((conn) => {
-          if (conn.profiles) {
-            // allConnections.push(conn.profiles as Profile);
-          }
-        });
-
-        // Remove duplicates
-        const uniqueConnections = allConnections.filter(
-          (conn, index, self) =>
-            index === self.findIndex((c) => c.id === conn.id)
-        );
-
-        setConnections(uniqueConnections);
+        setConnections(connectedUsersList);
       } catch (error: any) {
+        console.error("Error fetching conversations or connections:", error);
         toast({
-          title: "Error fetching messages",
-          description: error.message,
+          title: "Error fetching data",
+          description: error.message || "An unexpected error occurred.",
           variant: "destructive",
         });
       } finally {
@@ -317,7 +369,7 @@ export default function MessagesPage() {
                           {conversation.profile.avatar_url ? (
                             <img
                               src={conversation.profile.avatar_url}
-                              alt={conversation.profile.full_name || "Profile"}
+                              alt={conversation.profile.full_name || "UserType"}
                               className="h-12 w-12 rounded-full object-cover"
                             />
                           ) : (
@@ -431,7 +483,7 @@ export default function MessagesPage() {
                           {connection.avatar_url ? (
                             <img
                               src={connection.avatar_url}
-                              alt={connection.full_name || "Profile"}
+                              alt={connection.full_name || "UserType"}
                               className="h-12 w-12 rounded-full object-cover"
                             />
                           ) : (

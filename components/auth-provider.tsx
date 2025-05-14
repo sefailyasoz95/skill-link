@@ -8,8 +8,9 @@ import {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { User, Session } from "@supabase/supabase-js";
+import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase-client";
+import { User } from "@/lib/types";
 
 type AuthContextType = {
   user: User | null;
@@ -53,7 +54,12 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
           return;
         }
         setSession(data.session);
-        setUser(data.session?.user ?? null);
+        const { data: _user } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", data.session?.user.id)
+          .single();
+        setUser(_user ?? null);
       } catch (err) {
         console.error("Error in getSession:", err);
       } finally {
@@ -68,7 +74,13 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
-      setUser(newSession?.user ?? null);
+      const { data: _user } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", newSession?.user.id)
+        .single();
+
+      setUser(_user ?? null);
       setLoading(false);
       router.push("/dashboard");
     });

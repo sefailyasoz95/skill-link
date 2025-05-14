@@ -42,7 +42,7 @@ export interface CollabNeed {
   user_id: string;
   looking_for: string;
   description: string;
-  conditions: string | null;
+  conditions: string;
   created_at: string;
   user?: User;
 }
@@ -50,10 +50,10 @@ export type ConnectionStatus = "pending" | "accepted" | "rejected";
 
 export interface Connection {
   id: string;
-  user_a: string;
-  user_b: string;
   status: ConnectionStatus;
   created_at: string;
+  user_a: string;
+  user_b: string;
   userA?: User;
   userB?: User;
 }
@@ -90,4 +90,20 @@ export interface Message {
   sent_at: string;
   chat?: Chat;
   sender?: User;
+}
+export interface ConversationDisplayItem {
+  id: string; // Chat ID
+  is_group: boolean;
+  name: string | null; // Chat name (especially for groups or derived for 1-on-1)
+  lastMessage: {
+    id: string;
+    content: string;
+    sent_at: string;
+    sender?: User | null; // The user object of the sender
+    is_sender: boolean; // True if the currentUser sent this last message
+  } | null;
+  participants: User[]; // All participants in the chat
+  otherParticipants: User[]; // Participants excluding the current user
+  unreadCount: number; // Placeholder for unread messages logic
+  created_at: string; // Chat creation timestamp
 }

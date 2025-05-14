@@ -19,102 +19,185 @@ import { useAuth } from "@/components/auth-provider";
 import { Connection, User as UserType } from "@/lib/types";
 
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useAuth();
-  const [profile, setProfile] = useState<UserType | null>(null);
+  const { user: profile, loading: authLoading } = useAuth();
   const [connections, setConnections] = useState<Connection[]>([]);
   const [pendingConnections, setPendingConnections] = useState<Connection[]>(
     []
   );
-  const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingConnections, setLoadingConnections] = useState(true);
   const { toast } = useToast();
   const router = useRouter();
 
+  const fetchConnections = async () => {
+    try {
+      setLoadingConnections(true);
+
+      // Fetch accepted connections where current user is user_a
+      const { data: connectionsAsA, error: connectionsAsAError } =
+        await supabase
+          .from("connections")
+          .select(
+            `
+        id,
+        status,
+        created_at,
+        userB:user_b(
+          id, 
+          full_name, 
+          username,
+          profile_picture,
+          skills(id, name)
+        )
+      `
+          )
+          .eq("user_a", profile?.id)
+          .eq("status", "accepted");
+
+      if (connectionsAsAError) throw connectionsAsAError;
+
+      // Fetch accepted connections where current user is user_b
+      const { data: connectionsAsB, error: connectionsAsBError } =
+        await supabase
+          .from("connections")
+          .select(
+            `
+        id,
+        status,
+        created_at,
+        userA:user_a(
+          id, 
+          full_name, 
+          username,
+          profile_picture,
+          skills(id, name)
+        )
+      `
+          )
+          .eq("user_b", profile?.id)
+          .eq("status", "accepted");
+
+      if (connectionsAsBError) throw connectionsAsBError;
+
+      // Fetch pending connection requests received (where current user is user_b)
+      const { data: pendingReceivedData, error: pendingReceivedError } =
+        await supabase
+          .from("connections")
+          .select(
+            `
+        id,
+        status,
+        created_at,
+        userA:user_a(
+          id, 
+          full_name, 
+          username,
+          profile_picture,
+          skills(id, name)
+        )
+      `
+          )
+          .eq("user_b", profile?.id)
+          .eq("status", "pending");
+
+      if (pendingReceivedError) throw pendingReceivedError;
+
+      // Fetch pending connection requests sent (where current user is user_a)
+      const { data: pendingSentData, error: pendingSentError } = await supabase
+        .from("connections")
+        .select(
+          `
+        id,
+        status,
+        created_at,
+        userB:user_b(
+          id, 
+          full_name, 
+          username,
+          profile_picture,
+          skills(id, name)
+        )
+      `
+        )
+        .eq("user_a", profile?.id)
+        .eq("status", "pending");
+
+      if (pendingSentError) throw pendingSentError;
+
+      // Format accepted connections where the current user is user_a
+      const formattedConnectionsAsA =
+        connectionsAsA?.map((conn) => ({
+          id: conn.id,
+          status: conn.status,
+          created_at: conn.created_at,
+          connectedUser: conn.userB,
+        })) || [];
+
+      // Format accepted connections where the current user is user_b
+      const formattedConnectionsAsB =
+        connectionsAsB?.map((conn) => ({
+          id: conn.id,
+          status: conn.status,
+          created_at: conn.created_at,
+          connectedUser: conn.userA,
+        })) || [];
+
+      // Format pending connections received (where current user is user_b)
+      const formattedPendingReceived =
+        pendingReceivedData?.map((conn) => ({
+          id: conn.id,
+          status: conn.status,
+          created_at: conn.created_at,
+          requestingUser: conn.userA,
+        })) || [];
+
+      // Format pending connections sent (where current user is user_a)
+      const formattedPendingSent =
+        pendingSentData?.map((conn) => ({
+          id: conn.id,
+          status: conn.status,
+          created_at: conn.created_at,
+          requestedUser: conn.userB,
+        })) || [];
+
+      // Combine accepted connections
+      const allConnections = [
+        ...formattedConnectionsAsA,
+        ...formattedConnectionsAsB,
+      ];
+
+      // Return or set state with the fetched data
+      // setConnections(allConnections);
+      // setPendingConnectionsReceived(formattedPendingReceived);
+      // setPendingConnectionsSent(formattedPendingSent);
+      setLoadingConnections(false);
+
+      return {
+        connections: allConnections,
+        pendingReceived: formattedPendingReceived,
+        pendingSent: formattedPendingSent,
+      };
+    } catch (error: any) {
+      setLoadingConnections(false);
+
+      return {
+        connections: [],
+        pendingReceived: [],
+        pendingSent: [],
+      };
+    } finally {
+      setLoadingConnections(false);
+    }
+  };
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user) {
+    if (!profile) {
       router.push("/auth/signin");
       return;
     }
 
-    const fetchProfile = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-
-        if (error) throw error;
-        setProfile(data);
-      } catch (error: any) {
-        console.error("Error fetching profile:", error.message);
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-
-    const fetchConnections = async () => {
-      try {
-        // Fetch approved connections
-        const { data: connectionsData, error: connectionsError } =
-          await supabase
-            .from("connections")
-            .select(
-              `
-            id,
-            created_at,
-            status,
-            profiles!connections_user_id_2_fkey (id, full_name, avatar_url, skills)
-          `
-            )
-            .eq("user_id_1", user.id)
-            .eq("status", "connected");
-
-        if (connectionsError) throw connectionsError;
-
-        // Fetch pending connection requests
-        const { data: pendingData, error: pendingError } = await supabase
-          .from("connections")
-          .select(
-            `
-            id,
-            created_at,
-            status,
-            profiles!connections_user_id_1_fkey (id, full_name, avatar_url, skills)
-          `
-          )
-          .eq("user_id_2", user.id)
-          .eq("status", "pending");
-
-        if (pendingError) throw pendingError;
-
-        // Transform the data to a consistent format
-        const formattedConnections =
-          connectionsData?.map((conn) => ({
-            ...conn,
-            profile: conn.profiles,
-          })) || [];
-
-        const formattedPending =
-          pendingData?.map((conn) => ({
-            ...conn,
-            profile: conn.profiles,
-          })) || [];
-
-        // setConnections(formattedConnections);
-        // setPendingConnections(formattedPending);
-      } catch (error: any) {
-        console.error("Error fetching connections:", error.message);
-      } finally {
-        setLoadingConnections(false);
-      }
-    };
-
-    fetchProfile();
-    // fetchConnections();
-  }, [user, authLoading, router]);
+    fetchConnections();
+  }, [profile, authLoading, router]);
 
   const handleConnectionResponse = async (
     connectionId: string,
@@ -159,12 +242,20 @@ export default function DashboardPage() {
 
   if (authLoading) {
     return (
-      <div className="container py-10">
-        <div className="mx-auto max-w-5xl space-y-8">
-          <Skeleton className="h-8 w-[250px]" />
-          <Skeleton className="h-[200px] w-full" />
-          <Skeleton className="h-[300px] w-full" />
-        </div>
+      <div className="container py-10 flex flex-col">
+        {/* <div className="flex flex-row items-center">
+          <div className="mx-auto max-w-5xl space-y-8">
+            <Skeleton className="h-8 w-[250px]" />
+            <Skeleton className="h-[200px] w-full" />
+            <Skeleton className="h-[300px] w-full" />
+          </div>
+          <div className="mx-auto max-w-5xl space-y-8">
+            <Skeleton className="h-8 w-[250px]" />
+            <Skeleton className="h-[200px] w-full" />
+            <Skeleton className="h-[300px] w-full" />
+          </div>
+        </div> */}
+        <div className="border-b-2 border-b-foreground rounded-b-full animate-spin w-14 h-14" />
       </div>
     );
   }
@@ -190,7 +281,7 @@ export default function DashboardPage() {
               <CardDescription>Your public profile information</CardDescription>
             </CardHeader>
             <CardContent>
-              {loadingProfile ? (
+              {authLoading ? (
                 <div className="space-y-4">
                   <Skeleton className="h-12 w-12 rounded-full" />
                   <Skeleton className="h-4 w-[250px]" />
