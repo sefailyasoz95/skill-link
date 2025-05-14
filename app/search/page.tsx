@@ -584,20 +584,19 @@ export default function SearchPage() {
                       {profile.collab_needs &&
                         profile.collab_needs.length > 0 && (
                           <div>
-                            <h4 className="text-sm font-medium">Looking for</h4>
+                            <h4 className="text-sm font-medium">
+                              Collaboration Terms
+                            </h4>
                             <div className="mt-1 flex flex-wrap gap-1">
-                              {profile.collab_needs
-                                ?.slice(0, 2)
-                                .map((need, i) => (
+                              {profile.collab_needs.map((need) =>
+                                need.conditions.map((con, i) => (
                                   <Badge key={i} variant="outline">
-                                    {Array.isArray(need.conditions) &&
-                                    need.conditions.length > 0
-                                      ? need.conditions[0]
-                                      : "Need"}
+                                    {con}
                                   </Badge>
-                                ))}
+                                ))
+                              )}
                               {profile.collab_needs &&
-                                profile.collab_needs.length > 2 && (
+                                profile.collab_needs.length > 3 && (
                                   <Badge variant="outline">
                                     +{profile.collab_needs.length - 2}
                                   </Badge>
@@ -683,13 +682,13 @@ export default function SearchPage() {
                             <h3 className="font-medium">
                               {profile.full_name || "Unnamed User"}
                             </h3>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-muted-foreground">
                               {profile.availability ||
                                 "Availability not specified"}
                             </p>
                           </div>
                         </div>
-                        <div className="mt-4 sm:mt-0 flex flex-wrap gap-1">
+                        <div className="mb-auto flex flex-wrap gap-1">
                           {profile.skills?.slice(0, 3).map((skill, i) => (
                             <Badge key={i} variant="secondary">
                               {skill.name}
@@ -713,18 +712,15 @@ export default function SearchPage() {
                             Looking for:
                           </span>
                           <div className="flex flex-wrap gap-1">
-                            {profile.collab_needs
-                              ?.slice(0, 2)
-                              .map((need, i) => (
+                            {profile.collab_needs?.map((need) =>
+                              need.conditions.map((con, i) => (
                                 <Badge key={i} variant="outline">
-                                  {Array.isArray(need.conditions) &&
-                                  need.conditions.length > 0
-                                    ? need.conditions[0]
-                                    : "Need"}
+                                  {con}
                                 </Badge>
-                              ))}
+                              ))
+                            )}
                             {profile.collab_needs &&
-                              profile.collab_needs.length > 2 && (
+                              profile.collab_needs.length > 3 && (
                                 <Badge variant="outline">
                                   +{profile.collab_needs.length - 2}
                                 </Badge>

@@ -19,16 +19,16 @@
 
 ### 2. Search and Matching System
 
-- [ ] Develop robust search functionality to allow users to find potential co-founders
-- [ ] Create filters and sorting options for search results
+- [x] Develop robust search functionality to allow users to find potential co-founders
+- [x] Create filters and sorting options for search results
 - [ ] Implement a matching algorithm to suggest compatible co-founders
-- [ ] Add skill-based matching and relevance sorting
+- [x] Add skill-based matching and relevance sorting
 
 ### 3. Connection Request System
 
-- [ ] Complete UI for sending connection requests
+- [x] Complete UI for sending connection requests
 - [ ] Add notifications for received connection requests
-- [ ] Improve connection management interface
+- [x] Improve connection management interface
 - [ ] Add ability to withdraw or cancel requests
 
 ### 4. Messaging System

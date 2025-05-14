@@ -19,20 +19,71 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
+
 import {
   Chat,
   ChatMember,
   ConversationDisplayItem,
   Message,
   User as UserType,
+  Connection,
 } from "@/lib/types";
+
+// Define interface for chat member with nested user info
+interface ChatMemberWithUser {
+  user_id: string;
+  user: {
+    id: string;
+    full_name: string | null;
+    username: string | null;
+    profile_picture: string | null;
+  } | null;
+}
+
+// Define interface for messages with sender info
+interface MessageWithSender {
+  id: string;
+  content: string;
+  sent_at: string;
+  sender_id: string | null;
+  sender: {
+    id: string;
+    full_name: string | null;
+    username: string | null;
+    profile_picture: string | null;
+  } | null;
+}
+
+// Define interface for chat with members and messages
+interface ChatData {
+  id: string;
+  is_group: boolean;
+  name: string | null;
+  created_at: string;
+  chat_members: ChatMemberWithUser[];
+  messages: MessageWithSender[] | null;
+}
+
+// Define interface for connection user details
+interface ConnectionUserDetails {
+  id: string;
+  full_name: string | null;
+  username: string | null;
+  profile_picture: string | null;
+  bio: string | null;
+  location: string | null;
+  availability: string | null;
+  created_at: string;
+}
 
 export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [conversations, setConversations] = useState<Chat[]>([]);
-  const [filteredConversations, setFilteredConversations] = useState<Chat[]>(
+  const [conversations, setConversations] = useState<ConversationDisplayItem[]>(
     []
   );
+  const [filteredConversations, setFilteredConversations] = useState<
+    ConversationDisplayItem[]
+  >([]);
   const [connections, setConnections] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -59,9 +110,7 @@ export default function MessagesPage() {
 
       setLoading(true);
       try {
-        // 1. Fetch chats the current user is a member of,
-        //    along with their members (and their user profiles),
-        //    and the latest message for each chat (and its sender's profile).
+        // 1. Fetch chats the current user is a member of
         const { data: userChatMemberships, error: chatMembershipsError } =
           await supabase
             .from("chat_members")
@@ -91,9 +140,7 @@ export default function MessagesPage() {
               full_name,
               username,
               profile_picture
-            ),
-            order:sent_at.desc,
-            limit:1
+            )
           )
         )
       `
@@ -102,27 +149,39 @@ export default function MessagesPage() {
 
         if (chatMembershipsError) throw chatMembershipsError;
 
-        const conversations: ConversationDisplayItem[] = (
-          userChatMemberships || []
-        )
-          .map((membership) => {
-            const chat = membership.chat as Chat & {
-              chat_members: (ChatMember & { user: UserType | null })[];
-            } & { messages: (Message & { sender: UserType | null })[] | null };
+        // Process the data - we need to handle the nested structure carefully
+        const conversationsData: ConversationDisplayItem[] = [];
 
-            if (!chat) return null; // Should not happen with !inner
+        if (userChatMemberships) {
+          for (const membership of userChatMemberships) {
+            // Type assertion - treating this as any first to allow property access
+            const rawMembership = membership as any;
+            if (!rawMembership.chat) continue;
+
+            const chat = rawMembership.chat as ChatData;
 
             const lastMessageData =
               chat.messages && chat.messages.length > 0
                 ? chat.messages[0]
                 : null;
 
-            const allParticipants = (chat.chat_members || [])
-              .map((cm) => cm.user)
-              .filter((user) => user !== null) as UserType[];
+            // Filter out null users and map to UserType
+            const allParticipants = chat.chat_members
+              .filter((cm: any) => cm.user !== null)
+              .map((cm: any) => {
+                const user = cm.user;
+                if (!user) return null;
+                return {
+                  id: user.id,
+                  full_name: user.full_name,
+                  username: user.username,
+                  profile_picture: user.profile_picture,
+                } as UserType;
+              })
+              .filter((user: any): user is UserType => user !== null);
 
             const otherParticipants = allParticipants.filter(
-              (p) => p.id !== user.id
+              (p: any) => p.id !== user.id
             );
 
             let conversationName = chat.name;
@@ -132,42 +191,48 @@ export default function MessagesPage() {
               otherParticipants.length > 0
             ) {
               conversationName = otherParticipants
-                .map((p) => p.full_name || p.username)
+                .map((p: any) => p.full_name || p.username)
                 .join(", ");
             } else if (chat.is_group && !conversationName) {
               conversationName = "Group Chat"; // Default group name
             }
 
-            return {
-              id: chat.id,
-              is_group: chat.is_group,
-              name: conversationName,
-              lastMessage: lastMessageData
-                ? {
-                    id: lastMessageData.id,
-                    content: lastMessageData.content,
-                    sent_at: lastMessageData.sent_at,
-                    sender: lastMessageData.sender,
-                    is_sender: lastMessageData.sender_id === user.id,
-                  }
-                : null,
-              participants: allParticipants,
-              otherParticipants: otherParticipants,
-              unreadCount: 0, // TODO: Implement unread count logic. This usually requires more info.
-              // e.g., a `last_read_at` timestamp for the user in this chat,
-              // or individual message read statuses.
-              created_at: chat.created_at,
-            };
-          })
-          .filter(
-            (c) => c !== null && c.lastMessage !== null
-          ) as ConversationDisplayItem[]; // Filter out chats without messages if desired
+            // Only add conversations with messages
+            if (lastMessageData) {
+              const lastMessage = {
+                id: lastMessageData.id,
+                content: lastMessageData.content,
+                sent_at: lastMessageData.sent_at,
+                sender: lastMessageData.sender
+                  ? ({
+                      id: lastMessageData.sender.id,
+                      full_name: lastMessageData.sender.full_name,
+                      username: lastMessageData.sender.username,
+                      profile_picture: lastMessageData.sender.profile_picture,
+                    } as UserType)
+                  : null,
+                is_sender: lastMessageData.sender_id === user.id,
+              };
+
+              conversationsData.push({
+                id: chat.id,
+                is_group: chat.is_group,
+                name: conversationName,
+                lastMessage,
+                participants: allParticipants,
+                otherParticipants: otherParticipants,
+                unreadCount: 0, // TODO: Implement unread count logic
+                created_at: chat.created_at,
+              });
+            }
+          }
+        }
 
         // Sort conversations by the last message's sent_at time, descending
-        const sortedConversations = conversations.sort((a, b) => {
+        const sortedConversations = conversationsData.sort((a, b) => {
           if (!a.lastMessage && !b.lastMessage) return 0;
-          if (!a.lastMessage) return 1; // a comes after b if a has no message
-          if (!b.lastMessage) return -1; // b comes after a if b has no message
+          if (!a.lastMessage) return 1;
+          if (!b.lastMessage) return -1;
           return (
             new Date(b.lastMessage.sent_at).getTime() -
             new Date(a.lastMessage.sent_at).getTime()
@@ -175,10 +240,9 @@ export default function MessagesPage() {
         });
 
         setConversations(sortedConversations);
-        setFilteredConversations(sortedConversations); // Initially, filtered is all
+        setFilteredConversations(sortedConversations);
 
         // 2. Fetch connections to display in the "New Message" tab
-        // These are users the current user has an "accepted" connection with.
         const { data: connectionsData, error: connectionsError } =
           await supabase
             .from("connections")
@@ -218,26 +282,51 @@ export default function MessagesPage() {
         const connectedUsersList: UserType[] = [];
         const seenUserIds = new Set<string>();
 
-        connectionsData.forEach((conn) => {
-          const userADetails = conn.userA as any;
-          const userBDetails = conn.userB as any;
+        // Process connections data to extract connected users
+        if (connectionsData) {
+          for (const conn of connectionsData) {
+            // Type assertion to safely access properties
+            const connection = conn as any;
 
-          if (
-            conn.user_a === user.id &&
-            userBDetails &&
-            !seenUserIds.has(userBDetails.id)
-          ) {
-            connectedUsersList.push(userBDetails);
-            seenUserIds.add(userBDetails.id);
-          } else if (
-            conn.user_b === user.id &&
-            userADetails &&
-            !seenUserIds.has(userADetails.id)
-          ) {
-            connectedUsersList.push(userADetails);
-            seenUserIds.add(userADetails.id);
+            if (
+              connection.user_a === user.id &&
+              connection.userB &&
+              !seenUserIds.has(connection.user_b)
+            ) {
+              // Convert to UserType
+              const userB = connection.userB as ConnectionUserDetails;
+              connectedUsersList.push({
+                id: userB.id,
+                full_name: userB.full_name,
+                username: userB.username,
+                profile_picture: userB.profile_picture,
+                bio: userB.bio,
+                location: userB.location,
+                availability: userB.availability,
+                created_at: userB.created_at,
+              } as UserType);
+              seenUserIds.add(connection.user_b);
+            } else if (
+              connection.user_b === user.id &&
+              connection.userA &&
+              !seenUserIds.has(connection.user_a)
+            ) {
+              // Convert to UserType
+              const userA = connection.userA as ConnectionUserDetails;
+              connectedUsersList.push({
+                id: userA.id,
+                full_name: userA.full_name,
+                username: userA.username,
+                profile_picture: userA.profile_picture,
+                bio: userA.bio,
+                location: userA.location,
+                availability: userA.availability,
+                created_at: userA.created_at,
+              } as UserType);
+              seenUserIds.add(connection.user_a);
+            }
           }
-        });
+        }
 
         setConnections(connectedUsersList);
       } catch (error: any) {
@@ -263,7 +352,6 @@ export default function MessagesPage() {
           event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `recipient_id=eq.${user.id}`,
         },
         () => {
           // Refresh conversations when a new message is received
@@ -285,8 +373,14 @@ export default function MessagesPage() {
       const query = searchQuery.toLowerCase();
       const filtered = conversations.filter(
         (conv) =>
-          conv.profile.full_name?.toLowerCase().includes(query) ||
-          conv.lastMessage.content.toLowerCase().includes(query)
+          conv.name?.toLowerCase().includes(query) ||
+          (conv.lastMessage?.content &&
+            conv.lastMessage.content.toLowerCase().includes(query)) ||
+          conv.otherParticipants.some(
+            (p) =>
+              p.full_name?.toLowerCase().includes(query) ||
+              p.username?.toLowerCase().includes(query)
+          )
       );
       setFilteredConversations(filtered);
     } else {
@@ -353,70 +447,83 @@ export default function MessagesPage() {
               </div>
             ) : filteredConversations.length > 0 ? (
               <div className="space-y-3">
-                {filteredConversations.map((conversation) => (
-                  <Link
-                    key={conversation.profile.id}
-                    href={`/messages/${conversation.profile.id}`}
-                    className="block"
-                  >
-                    <div
-                      className={`flex items-start space-x-4 rounded-lg border p-4 transition-colors hover:bg-muted/50 ${
-                        conversation.unreadCount > 0 ? "bg-primary/5" : ""
-                      }`}
+                {filteredConversations.map((conversation) => {
+                  // Get the first other participant (or "Group Chat" name for group chats)
+                  const otherUser = conversation.otherParticipants[0];
+                  const displayName = conversation.is_group
+                    ? conversation.name
+                    : otherUser?.full_name ||
+                      otherUser?.username ||
+                      "Unnamed User";
+
+                  return (
+                    <Link
+                      key={conversation.id}
+                      href={`/messages/${conversation.id}`}
+                      className="block"
                     >
-                      <div className="relative">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          {conversation.profile.avatar_url ? (
-                            <img
-                              src={conversation.profile.avatar_url}
-                              alt={conversation.profile.full_name || "UserType"}
-                              className="h-12 w-12 rounded-full object-cover"
-                            />
-                          ) : (
-                            <User className="h-6 w-6 text-primary" />
+                      <div
+                        className={`flex items-start space-x-4 rounded-lg border p-4 transition-colors hover:bg-muted/50 ${
+                          conversation.unreadCount > 0 ? "bg-primary/5" : ""
+                        }`}
+                      >
+                        <div className="relative">
+                          <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                            {otherUser?.profile_picture ? (
+                              <img
+                                src={otherUser.profile_picture}
+                                alt={String(displayName || "User")}
+                                className="h-12 w-12 rounded-full object-cover"
+                              />
+                            ) : (
+                              <User className="h-6 w-6 text-primary" />
+                            )}
+                          </div>
+                          {conversation.unreadCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-white">
+                              {conversation.unreadCount}
+                            </span>
                           )}
                         </div>
-                        {conversation.unreadCount > 0 && (
-                          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-white">
-                            {conversation.unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <p
+                              className={`font-medium ${
+                                conversation.unreadCount > 0
+                                  ? "text-foreground"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {displayName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {conversation.lastMessage &&
+                                formatDistanceToNow(
+                                  new Date(conversation.lastMessage.sent_at),
+                                  { addSuffix: true }
+                                )}
+                            </p>
+                          </div>
                           <p
-                            className={`font-medium ${
+                            className={`text-sm line-clamp-1 ${
                               conversation.unreadCount > 0
-                                ? "text-foreground"
+                                ? "font-medium text-foreground"
                                 : "text-muted-foreground"
                             }`}
                           >
-                            {conversation.profile.full_name || "Unnamed User"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(
-                              new Date(conversation.lastMessage.created_at),
-                              { addSuffix: true }
+                            {conversation.lastMessage?.is_sender ? (
+                              <span>
+                                You: {conversation.lastMessage.content}
+                              </span>
+                            ) : (
+                              conversation.lastMessage?.content
                             )}
                           </p>
                         </div>
-                        <p
-                          className={`text-sm line-clamp-1 ${
-                            conversation.unreadCount > 0
-                              ? "font-medium text-foreground"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {conversation.lastMessage.is_sender ? (
-                            <span>You: {conversation.lastMessage.content}</span>
-                          ) : (
-                            conversation.lastMessage.content
-                          )}
-                        </p>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             ) : (
               <Card>
@@ -471,6 +578,9 @@ export default function MessagesPage() {
                       !searchQuery ||
                       conn.full_name
                         ?.toLowerCase()
+                        .includes(searchQuery.toLowerCase()) ||
+                      conn.username
+                        ?.toLowerCase()
                         .includes(searchQuery.toLowerCase())
                   )
                   .map((connection) => (
@@ -480,10 +590,14 @@ export default function MessagesPage() {
                     >
                       <div className="flex items-center space-x-4">
                         <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          {connection.avatar_url ? (
+                          {connection.profile_picture ? (
                             <img
-                              src={connection.avatar_url}
-                              alt={connection.full_name || "UserType"}
+                              src={connection.profile_picture}
+                              alt={String(
+                                connection.full_name ||
+                                  connection.username ||
+                                  "User"
+                              )}
                               className="h-12 w-12 rounded-full object-cover"
                             />
                           ) : (
@@ -492,12 +606,16 @@ export default function MessagesPage() {
                         </div>
                         <div>
                           <p className="font-medium">
-                            {connection.full_name || "Unnamed User"}
+                            {connection.full_name ||
+                              connection.username ||
+                              "Unnamed User"}
                           </p>
                         </div>
                       </div>
                       <Button asChild size="sm">
-                        <Link href={`/messages/${connection.id}`}>Message</Link>
+                        <Link href={`/messages/new/${connection.id}`}>
+                          Message
+                        </Link>
                       </Button>
                     </div>
                   ))}
