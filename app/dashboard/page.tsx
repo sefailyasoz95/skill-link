@@ -606,18 +606,20 @@ export default function DashboardPage() {
                         <h3 className="font-medium mb-2">Looking For</h3>
                         <div className="flex flex-wrap gap-2">
                           {collabNeeds && collabNeeds.length > 0 ? (
-                            collabNeeds.map((need, index) => (
-                              <motion.span
-                                key={index}
-                                className="inline-flex items-center rounded-full bg-secondary/80 px-2.5 py-0.5 text-xs font-medium"
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                transition={{ delay: 0.2 + index * 0.1 }}
-                                whileHover={{ scale: 1.1 }}
-                              >
-                                {need.conditions}
-                              </motion.span>
-                            ))
+                            collabNeeds.map((need) =>
+                              need.conditions.map((con, index) => (
+                                <motion.span
+                                  key={index}
+                                  className="inline-flex items-center rounded-full bg-secondary/80 px-2.5 py-0.5 text-xs font-medium"
+                                  initial={{ opacity: 0, scale: 0.8 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  transition={{ delay: 0.2 + index * 0.1 }}
+                                  whileHover={{ scale: 1.1 }}
+                                >
+                                  {con}
+                                </motion.span>
+                              ))
+                            )
                           ) : (
                             <p className="text-sm text-muted-foreground">
                               No collaboration needs specified

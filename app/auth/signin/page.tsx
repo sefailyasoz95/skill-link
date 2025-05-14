@@ -10,26 +10,60 @@ import {
 } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function SignInPage() {
-  const { googleSignIn } = useAuth();
+  const router = useRouter();
+  const { googleSignIn, user, loading } = useAuth();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+
+  // If user is already logged in, redirect them
+  // But only after auth is loaded and not to auth pages
+  useEffect(() => {
+    if (!loading && user && redirectTo !== window.location.pathname) {
+      // Prevent redirects to auth routes, which could cause loops
+      if (redirectTo.startsWith("/auth/")) {
+        router.push("/dashboard");
+      } else {
+        router.push(redirectTo);
+      }
+    }
+  }, [user, redirectTo, loading, router]);
 
   const handleSignIn = async () => {
-    const res = await googleSignIn();
-    if (res.error) {
+    try {
+      // Only pass the redirectTo if it's not an auth page (prevent loops)
+      const safeRedirectTo = redirectTo.startsWith("/auth/")
+        ? "/dashboard"
+        : redirectTo;
+
+      const res = await googleSignIn(safeRedirectTo);
+      if (res.error) {
+        toast({
+          title: "Sign In Error",
+          description: res.error.message || "Failed to sign in with Google",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error during sign in:", error);
       toast({
-        title: "Error!",
-        description: res.error,
+        title: "Sign In Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
       });
     }
   };
+
   return (
     <div className="container flex h-screen max-w-md items-center justify-center">
       <Card className="w-full">
-        <CardHeader className="space-y-1 text-center space-x-5">
+        <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
-          <CardDescription>Use your google account to sign in</CardDescription>
+          <CardDescription>Use your Google account to sign in</CardDescription>
         </CardHeader>
         <CardContent>
           <Button variant="outline" className="w-full" onClick={handleSignIn}>
@@ -55,7 +89,11 @@ export default function SignInPage() {
             Google
           </Button>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-4"></CardFooter>
+        <CardFooter className="flex justify-center text-center text-sm text-muted-foreground">
+          {redirectTo !== "/dashboard" && !redirectTo.startsWith("/auth/") && (
+            <p>You'll be redirected after signing in</p>
+          )}
+        </CardFooter>
       </Card>
     </div>
   );

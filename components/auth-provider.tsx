@@ -7,7 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase-client";
 import { User } from "@/lib/types";
@@ -16,10 +16,14 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   signUp: (email: string, password: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (
+    email: string,
+    password: string,
+    redirectTo?: string
+  ) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
-  googleSignIn: () => Promise<{ error: any }>;
+  googleSignIn: (redirectTo?: string) => Promise<{ error: any }>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -36,59 +40,80 @@ export const useAuth = () => useContext(AuthContext);
 
 type AuthProviderProps = {
   children: ReactNode;
+  redirectIfUnauthenticated?: boolean;
 };
 
-const AuthProvider = ({ children }: AuthProviderProps) => {
+const PUBLIC_ROUTES = [
+  "/",
+  "/auth/signin",
+  "/auth/callback",
+  "/how-it-works",
+  "/auth/signup",
+];
+
+const AuthProvider = ({
+  children,
+  redirectIfUnauthenticated = true,
+}: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Get the current session
     const getSession = async () => {
       try {
         const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error("Error fetching session:", error);
-          return;
-        }
         setSession(data.session);
-        const { data: _user } = await supabase
-          .from("users")
-          .select("*")
-          .eq("id", data.session?.user.id)
-          .single();
-        setUser(_user ?? null);
-      } catch (err) {
-        console.error("Error in getSession:", err);
+        if (!data.session) {
+          setUser(null);
+        } else {
+          const { data: userData } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", data.session.user.id)
+            .single();
+          setUser(userData ?? null);
+        }
       } finally {
         setLoading(false);
       }
     };
-
     getSession();
 
-    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
-      const { data: _user } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", newSession?.user.id)
-        .single();
-
-      setUser(_user ?? null);
+      if (!newSession) {
+        setUser(null);
+      } else {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", newSession.user.id)
+          .single();
+        setUser(userData ?? null);
+      }
       setLoading(false);
-      router.push("/dashboard");
     });
+    return () => subscription.unsubscribe();
+  }, []);
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
+  // Only redirect if not loading, not on a public route, and user is not authenticated
+  useEffect(() => {
+    if (
+      !loading &&
+      !user &&
+      redirectIfUnauthenticated &&
+      !PUBLIC_ROUTES.some(
+        (route) => pathname === route || pathname.startsWith(route + "/")
+      )
+    ) {
+      router.replace("/auth/signin?redirectTo=" + encodeURIComponent(pathname));
+    }
+  }, [user, loading, pathname, redirectIfUnauthenticated, router]);
 
   const signUp = async (email: string, password: string) => {
     try {
@@ -106,12 +131,19 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (
+    email: string,
+    password: string,
+    redirectTo?: string
+  ) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      if (!error && redirectTo) {
+        router.push(redirectTo);
+      }
       return { error };
     } catch (error) {
       console.error("Error in signIn:", error);
@@ -122,13 +154,19 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
       router.push("/");
     } catch (error) {
       console.error("Error in signOut:", error);
     }
   };
-  const googleSignIn = async () => {
+
+  const googleSignIn = async (redirectTo?: string) => {
     try {
+      if (redirectTo) {
+        sessionStorage.setItem("redirectAfterAuth", redirectTo);
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -137,10 +175,11 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       return { error };
     } catch (error) {
-      console.error("Error in signIn:", error);
+      console.error("Error in googleSignIn:", error);
       return { error };
     }
   };
+
   const value = {
     user,
     session,
@@ -150,7 +189,6 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     loading,
     googleSignIn,
   };
-
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
