@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Edit,
   MessageSquare,
-  User,
+  User as UserIcon,
   UserPlus,
   Eye,
   Clock,
@@ -28,45 +28,25 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
+import type {
+  User,
+  Skill,
+  CollabNeed,
+  ProfileView,
+  Connection,
+  ConnectionStatus,
+} from "@/lib/types";
 
-// Extend the imported types with our custom fields for the dashboard
-interface User {
+// Custom type for using Connection with different field names and extended user objects
+type ConnectionWithUser = {
   id: string;
-  full_name: string | null;
-  profile_picture: string | null;
-  location: string | null;
-  availability?: string | null;
-  created_at?: string;
-}
-
-interface Skill {
-  id: number;
-  name: string;
-}
-
-interface CollabNeed {
-  id: string;
-  user_id: string;
-  conditions: string;
-}
-
-interface ProfileView {
-  id: string;
-  viewer_id: string;
-  viewed_user_id: string;
-  viewed_at: string;
-  viewer?: User;
-}
-
-interface ConnectionWithUser {
-  id: string;
-  status: string;
+  status: ConnectionStatus;
   created_at: string;
-  user_a: string;
-  user_b: string;
-  connected_user?: User;
-  requesting_user?: User;
-}
+  user_a: string; // Connection.user_a (instead of userA)
+  user_b: string; // Connection.user_b (instead of userB)
+  connected_user?: User; // Extended to include full User object
+  requesting_user?: User; // For pending connections
+};
 
 export default function DashboardPage() {
   const { user: profile, loading: authLoading } = useAuth();
@@ -208,24 +188,36 @@ export default function DashboardPage() {
       // Process and set the data
       // Fix the skills data structure - flatten the nested arrays
       const processedSkills: Skill[] = skillsData
-        ? skillsData.reduce<Skill[]>((acc, item) => {
-            // Check if skills is an object with id and name properties
-            if (item.skills && typeof item.skills === "object") {
+        ? (skillsData as any[]).reduce((acc: Skill[], item: any) => {
+            if (item?.skills) {
               // Handle both single object and array cases
               if (Array.isArray(item.skills)) {
-                // If it's an array (shouldn't happen based on query), take the first item
-                if (item.skills.length > 0) {
+                // If it's an array, take the first item if it has id and name
+                if (
+                  item.skills.length > 0 &&
+                  typeof item.skills[0] === "object"
+                ) {
+                  const skill = item.skills[0];
+                  if ("id" in skill && "name" in skill) {
+                    // Create a proper Skill object conforming to the type
+                    acc.push({
+                      id: skill.id,
+                      name: skill.name,
+                      users: [], // Initialize with empty array to match Skill type
+                    });
+                  }
+                }
+              } else if (typeof item.skills === "object") {
+                // It's a single object
+                const skill = item.skills;
+                if ("id" in skill && "name" in skill) {
+                  // Create a proper Skill object conforming to the type
                   acc.push({
-                    id: item.skills[0].id,
-                    name: item.skills[0].name,
+                    id: skill.id,
+                    name: skill.name,
+                    users: [], // Initialize with empty array to match Skill type
                   });
                 }
-              } else {
-                // It's a single object (expected case)
-                acc.push({
-                  id: item.skills.id,
-                  name: item.skills.name,
-                });
               }
             }
             return acc;
@@ -235,7 +227,7 @@ export default function DashboardPage() {
       // Fix the connections data typing
       const processedConnections: ConnectionWithUser[] = [
         ...(connectionsAsA
-          ? connectionsAsA.map((conn) => {
+          ? connectionsAsA.map((conn: any) => {
               const userObject =
                 conn.connected_user && !Array.isArray(conn.connected_user)
                   ? conn.connected_user
@@ -246,7 +238,7 @@ export default function DashboardPage() {
 
               return {
                 id: conn.id,
-                status: conn.status,
+                status: conn.status as ConnectionStatus,
                 created_at: conn.created_at,
                 user_a: conn.user_a,
                 user_b: conn.user_b,
@@ -256,13 +248,17 @@ export default function DashboardPage() {
                       full_name: userObject.full_name,
                       profile_picture: userObject.profile_picture,
                       location: userObject.location,
+                      username: userObject.username || null,
+                      bio: userObject.bio || null,
+                      availability: userObject.availability || null,
+                      created_at: userObject.created_at || conn.created_at,
                     }
                   : undefined,
               };
             })
           : []),
         ...(connectionsAsB
-          ? connectionsAsB.map((conn) => {
+          ? connectionsAsB.map((conn: any) => {
               const userObject =
                 conn.connected_user && !Array.isArray(conn.connected_user)
                   ? conn.connected_user
@@ -273,7 +269,7 @@ export default function DashboardPage() {
 
               return {
                 id: conn.id,
-                status: conn.status,
+                status: conn.status as ConnectionStatus,
                 created_at: conn.created_at,
                 user_a: conn.user_a,
                 user_b: conn.user_b,
@@ -283,6 +279,10 @@ export default function DashboardPage() {
                       full_name: userObject.full_name,
                       profile_picture: userObject.profile_picture,
                       location: userObject.location,
+                      username: userObject.username || null,
+                      bio: userObject.bio || null,
+                      availability: userObject.availability || null,
+                      created_at: userObject.created_at || conn.created_at,
                     }
                   : undefined,
               };
@@ -292,7 +292,7 @@ export default function DashboardPage() {
 
       // Fix the profile views data typing
       const formattedViews: ProfileView[] = viewsData
-        ? viewsData.map((view) => {
+        ? viewsData.map((view: any) => {
             const viewerObject =
               view.viewer && !Array.isArray(view.viewer)
                 ? view.viewer
@@ -311,6 +311,10 @@ export default function DashboardPage() {
                     full_name: viewerObject.full_name,
                     profile_picture: viewerObject.profile_picture,
                     location: viewerObject.location,
+                    username: viewerObject.username || null,
+                    bio: viewerObject.bio || null,
+                    availability: viewerObject.availability || null,
+                    created_at: viewerObject.created_at || view.viewed_at,
                   }
                 : undefined,
             };
@@ -319,7 +323,7 @@ export default function DashboardPage() {
 
       // Fix the pending connections data typing
       const formattedPendingConnections: ConnectionWithUser[] = pendingRequests
-        ? pendingRequests.map((conn) => {
+        ? pendingRequests.map((conn: any) => {
             const userObject =
               conn.requesting_user && !Array.isArray(conn.requesting_user)
                 ? conn.requesting_user
@@ -330,7 +334,7 @@ export default function DashboardPage() {
 
             return {
               id: conn.id,
-              status: conn.status,
+              status: conn.status as ConnectionStatus,
               created_at: conn.created_at,
               user_a: conn.user_a,
               user_b: conn.user_b,
@@ -340,13 +344,26 @@ export default function DashboardPage() {
                     full_name: userObject.full_name,
                     profile_picture: userObject.profile_picture,
                     location: userObject.location,
+                    username: userObject.username || null,
+                    bio: userObject.bio || null,
+                    availability: userObject.availability || null,
+                    created_at: userObject.created_at || conn.created_at,
                   }
                 : undefined,
             };
           })
         : [];
 
-      const formattedNeeds: CollabNeed[] = needsData || [];
+      const formattedNeeds: CollabNeed[] = needsData
+        ? needsData.map((need: any) => ({
+            id: need.id,
+            user_id: need.user_id,
+            looking_for: need.looking_for || "",
+            description: need.description || "",
+            conditions: need.conditions,
+            created_at: need.created_at,
+          }))
+        : [];
 
       setUserSkills(processedSkills);
       setCollabNeeds(formattedNeeds);
@@ -536,7 +553,7 @@ export default function DashboardPage() {
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <User className="h-6 w-6 text-primary" />
+                            <UserIcon className="h-6 w-6 text-primary" />
                           )}
                         </div>
                         <div>
@@ -721,7 +738,7 @@ export default function DashboardPage() {
                                         className="h-full w-full object-cover"
                                       />
                                     ) : (
-                                      <User className="h-4 w-4 text-primary" />
+                                      <UserIcon className="h-4 w-4 text-primary" />
                                     )}
                                   </div>
                                   <div>
@@ -901,7 +918,7 @@ export default function DashboardPage() {
               >
                 <Button asChild variant="outline" size="sm">
                   <Link href="/search">
-                    <UserPlus className="mr-2 h-4 w-4" />
+                    <UserIcon className="mr-2 h-4 w-4" />
                     Find More
                   </Link>
                 </Button>
@@ -945,7 +962,7 @@ export default function DashboardPage() {
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
-                                <User className="h-5 w-5 text-primary" />
+                                <UserIcon className="h-5 w-5 text-primary" />
                               )}
                             </div>
                             <div className="flex-1 space-y-1">
@@ -1053,7 +1070,7 @@ export default function DashboardPage() {
                                   className="h-full w-full object-cover"
                                 />
                               ) : (
-                                <User className="h-5 w-5 text-primary" />
+                                <UserIcon className="h-5 w-5 text-primary" />
                               )}
                             </div>
                             <div className="flex-1 space-y-1">
