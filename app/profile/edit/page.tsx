@@ -32,6 +32,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PlusCircle, X, Loader2 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useAuth } from "@/components/auth-provider";
+import { skillOptions, collaborationTermOptions } from "@/lib/constants";
 
 const profileFormSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -39,6 +40,7 @@ const profileFormSchema = z.object({
   bio: z.string().max(500, "Bio cannot exceed 500 characters").nullable(),
   skills: z.array(z.string()).min(1, "At least one skill is required"),
   collaboration_needs: z.array(z.string()),
+  collaboration_terms: z.array(z.string()),
   availability: z.string().nullable(),
   location: z.string().nullable(),
   past_projects: z
@@ -60,45 +62,6 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 // Skills and needs options
-const skillOptions = [
-  "Web Development",
-  "Mobile Development",
-  "UI/UX Design",
-  "Graphic Design",
-  "Marketing",
-  "Content Writing",
-  "SEO",
-  "Social Media",
-  "Business Strategy",
-  "Product Management",
-  "Data Analysis",
-  "AI/ML",
-  "DevOps",
-  "Sales",
-  "Customer Support",
-  "Video Editing",
-  "Audio Production",
-  "Photography",
-  "Illustration",
-  "Animation",
-  "3D Modeling",
-  "Game Development",
-  "Blockchain",
-  "Copywriting",
-  "Email Marketing",
-];
-
-// Collaboration term options for future use
-const collaborationTermOptions = [
-  "Revenue Share",
-  "Equity",
-  "Fixed Fee",
-  "Hourly Rate",
-  "Skill Exchange",
-  "Co-founder",
-  "Advisor",
-  "Mentorship",
-];
 
 export default function EditProfilePage() {
   const [loading, setLoading] = useState(true);
@@ -124,6 +87,7 @@ export default function EditProfilePage() {
       bio: "",
       skills: [],
       collaboration_needs: [],
+      collaboration_terms: [],
       availability: null,
       location: "",
       past_projects: [],
@@ -245,7 +209,7 @@ export default function EditProfilePage() {
 
         // Fetch collaboration needs
         console.log("Fetching collaboration needs...");
-        const { data: needsData, error: needsError } = await supabase
+        const { data: collabNeedsData, error: needsError } = await supabase
           .from("collab_needs")
           .select("*")
           .eq("user_id", user.id);
@@ -254,7 +218,7 @@ export default function EditProfilePage() {
           console.error("Error fetching collaboration needs:", needsError);
           throw needsError;
         }
-        console.log("Collaboration needs retrieved:", needsData);
+        console.log("Collaboration needs data retrieved:", collabNeedsData);
 
         // Fetch projects
         console.log("Fetching user projects...");
@@ -272,25 +236,52 @@ export default function EditProfilePage() {
         // Initialize form with retrieved data
         console.log("Initializing form with retrieved data...");
         const skills = skillsData?.map((item) => item.skills) || [];
-        const needs = needsData || [];
+
+        // Process collab needs data
+        let collaborationNeeds: string[] = [];
+        let collaborationTerms: string[] = [];
+
+        if (collabNeedsData && collabNeedsData.length > 0) {
+          // For each collab need entry, extract the looking_for and conditions arrays
+          collabNeedsData.forEach((need) => {
+            // Extract looking_for values for the collaboration_needs field
+            if (need.looking_for && Array.isArray(need.looking_for)) {
+              collaborationNeeds = [...collaborationNeeds, ...need.looking_for];
+            }
+
+            // Extract conditions values for the collaboration_terms field
+            if (need.conditions && Array.isArray(need.conditions)) {
+              collaborationTerms = [...collaborationTerms, ...need.conditions];
+            }
+          });
+        }
+
+        console.log("Extracted collaboration needs:", collaborationNeeds);
+        console.log("Extracted collaboration terms:", collaborationTerms);
+
         const projects = projectsData || [];
 
         console.log("Processed data for form:", {
           skills,
-          needs,
+          collaborationNeeds,
+          collaborationTerms,
           projects,
         });
 
-        form.reset({
+        const formValues = {
           full_name: userData.full_name || "",
           profile_picture: userData.profile_picture,
           bio: userData.bio || "",
           skills: skills.map((skill: any) => skill.name),
-          collaboration_needs: needs.map((need: any) => need.conditions),
+          collaboration_needs: collaborationNeeds,
+          collaboration_terms: collaborationTerms,
           availability: userData.availability || null,
           location: userData.location || "",
           past_projects: projects,
-        });
+        };
+
+        console.log("Form values being set:", formValues);
+        form.reset(formValues);
 
         setAvatarUrl(userData.profile_picture);
         setPastProjects(projects);
@@ -306,13 +297,22 @@ export default function EditProfilePage() {
           console.log("Custom skills identified:", _custom);
         }
 
-        if (needs.length > 0) {
+        if (collaborationNeeds.length > 0) {
           console.log("Processing custom collaboration needs...");
-          const custom = needs
-            .filter((need: any) => !skillOptions.includes(need.conditions))
-            .map((x: any) => x.conditions);
+          const custom = collaborationNeeds.filter(
+            (need: string) => !skillOptions.includes(need)
+          );
           setCustomNeeds(custom);
           console.log("Custom collaboration needs identified:", custom);
+        }
+
+        if (collaborationTerms.length > 0) {
+          console.log("Processing custom collaboration terms...");
+          const custom = collaborationTerms.filter(
+            (term: string) => !collaborationTermOptions.includes(term)
+          );
+          setCustomTerms(custom);
+          console.log("Custom collaboration terms identified:", custom);
         }
 
         console.log("Profile data loaded successfully");
@@ -471,50 +471,49 @@ export default function EditProfilePage() {
         console.log("No skills to add");
       }
 
-      // 3. Handle collaboration needs
-      console.log("Step 3: Handling collaboration needs");
-      console.log("Step 3.1: Deleting existing collaboration needs");
-      const { error: needsDeleteError } = await supabase
+      // 3. Handle collaboration needs and terms
+      console.log("Step 3: Handling collaboration needs and terms");
+      console.log("Step 3.1: Deleting existing collaboration data");
+      const { error: collabDeleteError } = await supabase
         .from("collab_needs")
         .delete()
         .eq("user_id", user.id);
 
-      if (needsDeleteError) {
-        console.error("Error deleting collaboration needs:", needsDeleteError);
-        throw needsDeleteError;
+      if (collabDeleteError) {
+        console.error("Error deleting collaboration data:", collabDeleteError);
+        throw collabDeleteError;
       }
-      console.log("Existing collaboration needs deleted successfully");
+      console.log("Existing collaboration data deleted successfully");
 
-      // Insert new collaboration needs
-      if (values.collaboration_needs && values.collaboration_needs.length > 0) {
-        console.log(
-          "Step 3.2: Adding new collaboration needs:",
-          values.collaboration_needs
-        );
+      // Insert new combined collaboration data
+      if (
+        (values.collaboration_needs && values.collaboration_needs.length > 0) ||
+        (values.collaboration_terms && values.collaboration_terms.length > 0)
+      ) {
+        console.log("Step 3.2: Adding new collaboration data:", {
+          needs: values.collaboration_needs,
+          terms: values.collaboration_terms,
+        });
 
-        for (const needText of values.collaboration_needs) {
-          console.log(`Adding collaboration need: ${needText}`);
-          const { error: addNeedError } = await supabase
-            .from("collab_needs")
-            .insert({
-              user_id: user.id,
-              conditions: needText,
-            });
+        // Insert a single record with both arrays
+        const { error: addCollabError } = await supabase
+          .from("collab_needs")
+          .insert({
+            user_id: user.id,
+            looking_for: values.collaboration_needs || [],
+            conditions: values.collaboration_terms || [],
+            description: "", // Add a default value for the description field
+            created_at: new Date().toISOString(),
+          });
 
-          if (addNeedError) {
-            console.error(
-              `Error adding collaboration need ${needText}:`,
-              addNeedError
-            );
-            throw addNeedError;
-          }
-
-          console.log(`Successfully added collaboration need: ${needText}`);
+        if (addCollabError) {
+          console.error("Error adding collaboration data:", addCollabError);
+          throw addCollabError;
         }
 
-        console.log("All collaboration needs added successfully");
+        console.log("Collaboration data added successfully");
       } else {
-        console.log("No collaboration needs to add");
+        console.log("No collaboration data to add");
       }
 
       // 4. Handle past projects
@@ -839,33 +838,86 @@ export default function EditProfilePage() {
                   <FormField
                     control={form.control}
                     name="collaboration_needs"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Looking For</FormLabel>
-                        <FormControl>
-                          <MultiSelect
-                            placeholder="Select skills you're looking for"
-                            options={[...skillOptions, ...customNeeds].map(
-                              (skill) => ({
-                                label: skill,
-                                value: skill,
-                              })
-                            )}
-                            selected={field.value || []}
-                            onChange={field.onChange}
-                            creatable
-                            onCreateOption={(newNeed) => {
-                              setCustomNeeds((prev) => [...prev, newNeed]);
-                              field.onChange([...(field.value || []), newNeed]);
-                            }}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Select the skills you're looking for in collaborators
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      console.log(
+                        "Rendering collaboration_needs field with values:",
+                        field.value
+                      );
+                      return (
+                        <FormItem>
+                          <FormLabel>Looking For</FormLabel>
+                          <FormControl>
+                            <MultiSelect
+                              placeholder="Select skills you're looking for"
+                              options={[...skillOptions, ...customNeeds].map(
+                                (skill) => ({
+                                  label: skill,
+                                  value: skill,
+                                })
+                              )}
+                              selected={field.value || []}
+                              onChange={field.onChange}
+                              creatable
+                              onCreateOption={(newNeed) => {
+                                setCustomNeeds((prev) => [...prev, newNeed]);
+                                field.onChange([
+                                  ...(field.value || []),
+                                  newNeed,
+                                ]);
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Select the skills you're looking for in
+                            collaborators
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="collaboration_terms"
+                    render={({ field }) => {
+                      console.log(
+                        "Rendering collaboration_terms field with values:",
+                        field.value
+                      );
+                      return (
+                        <FormItem>
+                          <FormLabel>Collaboration Terms</FormLabel>
+                          <FormControl>
+                            <MultiSelect
+                              placeholder="Select your preferred collaboration terms"
+                              options={[
+                                ...collaborationTermOptions,
+                                ...customTerms,
+                              ].map((term) => ({
+                                label: term,
+                                value: term,
+                              }))}
+                              selected={field.value || []}
+                              onChange={field.onChange}
+                              creatable
+                              onCreateOption={(newTerm) => {
+                                setCustomTerms((prev) => [...prev, newTerm]);
+                                field.onChange([
+                                  ...(field.value || []),
+                                  newTerm,
+                                ]);
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Select the terms under which you prefer to
+                            collaborate
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
 

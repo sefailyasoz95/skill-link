@@ -43,6 +43,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/components/auth-provider";
 import { User as UserType } from "@/lib/types";
+import { skillOptions, collaborationTermOptions } from "@/lib/constants";
 
 type FiltersState = {
   skills: string[];
@@ -65,40 +66,74 @@ export default function SearchPage() {
     availability: undefined,
     terms: [],
   });
-  const [allSkills, setAllSkills] = useState<string[]>([]);
   const [allNeeds, setAllNeeds] = useState<string[]>([]);
-  const [allTerms, setAllTerms] = useState<string[]>([]);
 
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+
   const fetchProfiles = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+
+      // Approach with a more efficient fetching strategy using subqueries for skills and needs
+      const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("*")
+        .select(
+          `
+          *,
+          skills:user_skills(
+            skill_id,
+            skills(id, name)
+          ),
+          collab_needs(*)
+        `
+        )
         .neq("id", user?.id);
 
-      if (error) throw error;
+      if (userError) throw userError;
 
-      setProfiles(data || []);
-      setFilteredProfiles(data || []);
+      // Process the returned data into the expected format
+      const processedProfiles = userData.map((profile) => {
+        // Process skills from nested format
+        const processedSkills = profile.skills
+          ? profile.skills
+              .map((item: any) => {
+                if (item.skills && typeof item.skills === "object") {
+                  return {
+                    id: item.skills.id,
+                    name: item.skills.name,
+                  };
+                }
+                return null;
+              })
+              .filter(Boolean)
+          : [];
 
-      // Extract all unique skills, needs, and terms for filters
-      const skills = new Set<string>();
-      const needs = new Set<string>();
-      const terms = new Set<string>();
-
-      data?.forEach((profile) => {
-        profile.skills?.forEach((skill: any) => skills.add(skill));
-        profile.collab_needs?.forEach((need: any) => needs.add(need));
-        profile.collaboration_terms?.forEach((term: any) => terms.add(term));
+        return {
+          ...profile,
+          skills: processedSkills,
+          // collab_needs is already in the right format
+        };
       });
 
-      setAllSkills(Array.from(skills));
-      setAllNeeds(Array.from(needs));
-      setAllTerms(Array.from(terms));
+      setProfiles(processedProfiles);
+      setFilteredProfiles(processedProfiles);
+
+      // Extract all unique skills, needs, and terms for filters
+      const uniqueSkills = new Set<string>();
+      const uniqueNeeds = new Set<string>();
+
+      processedProfiles.forEach((profile) => {
+        profile.skills?.forEach((skill: any) => uniqueSkills.add(skill.name));
+        profile.collab_needs?.forEach((need: any) =>
+          uniqueNeeds.add(need.conditions)
+        );
+      });
+
+      setAllNeeds(Array.from(uniqueNeeds));
     } catch (error: any) {
+      console.error("Error fetching profiles:", error);
       toast({
         title: "Error fetching profiles",
         description: error.message,
@@ -134,9 +169,7 @@ export default function SearchPage() {
           profile.skills?.some((skill) =>
             skill.name.toLowerCase().includes(query)
           ) ||
-          profile.collab_needs?.some((need) =>
-            need.conditions?.toLowerCase().includes(query)
-          )
+          profile.collab_needs?.some((need) => need.conditions?.includes(query))
       );
     }
 
@@ -150,18 +183,13 @@ export default function SearchPage() {
     if (filters.needs.length) {
       result = result.filter((profile) =>
         profile.collab_needs?.some((need) =>
-          filters.needs.includes(need.conditions ?? "")
+          // Check if any value in the conditions array matches any value in filters.needs
+          need.conditions?.some((condition) =>
+            filters.needs.includes(condition)
+          )
         )
       );
     }
-
-    // if (filters.terms.length) {
-    //   result = result.filter((profile) =>
-    //     profile.?.some((term) =>
-    //       filters.terms.includes(term)
-    //     )
-    //   );
-    // }
 
     if (filters.availability) {
       result = result.filter(
@@ -183,7 +211,7 @@ export default function SearchPage() {
         .from("connections")
         .select("*")
         .or(
-          `and(user_id_1.eq.${user.id},user_id_2.eq.${profileId}),and(user_id_1.eq.${profileId},user_id_2.eq.${user.id})`
+          `and(user_a.eq.${user.id},user_b.eq.${profileId}),and(user_a.eq.${profileId},user_b.eq.${user.id})`
         )
         .maybeSingle();
 
@@ -199,10 +227,10 @@ export default function SearchPage() {
 
       // Create new connection
       const { error } = await supabase.from("connections").insert({
-        user_id_1: user.id,
-        user_id_2: profileId,
+        user_a: user.id,
+        user_b: profileId,
         status: "pending",
-        initiator_id: user.id,
+        created_at: new Date().toISOString(),
       });
 
       if (error) throw error;
@@ -310,7 +338,7 @@ export default function SearchPage() {
               <div className="mt-6 space-y-6">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium">Skills</h3>
+                    <h3 className="text-sm font-medium">Looking For</h3>
                     {filters.skills.length > 0 && (
                       <Button
                         variant="ghost"
@@ -324,31 +352,22 @@ export default function SearchPage() {
                       </Button>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    {allSkills.length > 0 ? (
-                      allSkills.map((skill) => (
-                        <div
-                          key={skill}
-                          className="flex items-center space-x-2"
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                    {skillOptions.map((skill) => (
+                      <div key={skill} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`skill-${skill}`}
+                          checked={filters.skills.includes(skill)}
+                          onCheckedChange={() => toggleSkillFilter(skill)}
+                        />
+                        <Label
+                          htmlFor={`skill-${skill}`}
+                          className="text-sm font-normal"
                         >
-                          <Checkbox
-                            id={`skill-${skill}`}
-                            checked={filters.skills.includes(skill)}
-                            onCheckedChange={() => toggleSkillFilter(skill)}
-                          />
-                          <Label
-                            htmlFor={`skill-${skill}`}
-                            className="text-sm font-normal"
-                          >
-                            {skill}
-                          </Label>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="flex items-center space-x-2 text-xs italic text-destructive">
-                        No options to show, make sure you updated your profile
+                          {skill}
+                        </Label>
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
 
@@ -356,13 +375,13 @@ export default function SearchPage() {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium">Looking For</h3>
-                    {filters.needs.length > 0 && (
+                    <h3 className="text-sm font-medium">Collaboration Terms</h3>
+                    {filters.terms.length > 0 && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() =>
-                          setFilters((prev) => ({ ...prev, needs: [] }))
+                          setFilters((prev) => ({ ...prev, terms: [] }))
                         }
                         className="h-auto py-1 text-xs"
                       >
@@ -370,28 +389,22 @@ export default function SearchPage() {
                       </Button>
                     )}
                   </div>
-                  <div className="space-y-2">
-                    {allNeeds.length > 0 ? (
-                      allNeeds.map((need) => (
-                        <div key={need} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`need-${need}`}
-                            checked={filters.needs.includes(need)}
-                            onCheckedChange={() => toggleNeedFilter(need)}
-                          />
-                          <Label
-                            htmlFor={`need-${need}`}
-                            className="text-sm font-normal"
-                          >
-                            {need}
-                          </Label>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="flex items-center space-x-2 text-xs italic text-destructive">
-                        No options to show, make sure you updated your profile
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                    {collaborationTermOptions.map((term) => (
+                      <div key={term} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`term-${term}`}
+                          checked={filters.terms.includes(term)}
+                          onCheckedChange={() => toggleTermFilter(term)}
+                        />
+                        <Label
+                          htmlFor={`term-${term}`}
+                          className="text-sm font-normal"
+                        >
+                          {term}
+                        </Label>
                       </div>
-                    )}
+                    ))}
                   </div>
                 </div>
 
@@ -438,43 +451,6 @@ export default function SearchPage() {
                       <SelectItem value="Weekends">Weekends only</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium">Collaboration Terms</h3>
-                    {filters.terms.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          setFilters((prev) => ({ ...prev, terms: [] }))
-                        }
-                        className="h-auto py-1 text-xs"
-                      >
-                        Clear
-                      </Button>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    {allTerms.slice(0, 10).map((term) => (
-                      <div key={term} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`term-${term}`}
-                          checked={filters.terms.includes(term)}
-                          onCheckedChange={() => toggleTermFilter(term)}
-                        />
-                        <Label
-                          htmlFor={`term-${term}`}
-                          className="text-sm font-normal"
-                        >
-                          {term}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
                 </div>
 
                 <div className="flex justify-between pt-4">
@@ -574,7 +550,10 @@ export default function SearchPage() {
                                 ?.slice(0, 2)
                                 .map((need, i) => (
                                   <Badge key={i} variant="outline">
-                                    {need.conditions}
+                                    {Array.isArray(need.conditions) &&
+                                    need.conditions.length > 0
+                                      ? need.conditions[0]
+                                      : "Need"}
                                   </Badge>
                                 ))}
                               {profile.collab_needs &&
@@ -698,7 +677,10 @@ export default function SearchPage() {
                               ?.slice(0, 2)
                               .map((need, i) => (
                                 <Badge key={i} variant="outline">
-                                  {need.conditions}
+                                  {Array.isArray(need.conditions) &&
+                                  need.conditions.length > 0
+                                    ? need.conditions[0]
+                                    : "Need"}
                                 </Badge>
                               ))}
                             {profile.collab_needs &&

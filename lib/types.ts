@@ -40,9 +40,9 @@ export interface Project {
 export interface CollabNeed {
   id: string;
   user_id: string;
-  looking_for: string;
+  looking_for: string[];
   description: string;
-  conditions: string;
+  conditions: string[];
   created_at: string;
   user?: User;
 }

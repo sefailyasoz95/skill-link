@@ -576,11 +576,13 @@ export default function ProfileCard({
             </h3>
             <div className="flex flex-wrap gap-2">
               {profile.collab_needs && profile.collab_needs.length > 0 ? (
-                profile.collab_needs.map((need, index) => (
-                  <Badge key={index} className="px-3 py-1 text-sm">
-                    {need.conditions}
-                  </Badge>
-                ))
+                profile.collab_needs.map((need) =>
+                  need.conditions.map((con, index) => (
+                    <Badge key={index} className="px-3 py-1 text-sm">
+                      {con}
+                    </Badge>
+                  ))
+                )
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No collaboration needs specified

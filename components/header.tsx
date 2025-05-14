@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { trackEvent } from "@/lib/firebase";
 import { useAuth } from "./auth-provider";
+import Image from "next/image";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
@@ -70,9 +71,12 @@ export default function Header() {
             href={user ? "/dashboard" : "/"}
             className="items-center space-x-2 flex"
           >
-            <span className="hidden font-bold sm:inline-block text-xl">
-              Skill Link
-            </span>
+            <Image
+              src={"/skill_link_logo.png"}
+              alt="Skill Link"
+              width={75}
+              height={75}
+            />
           </Link>
           {!user && (
             <nav className="hidden md:flex gap-6">
