@@ -329,9 +329,9 @@ export default function EditProfilePage() {
 						.eq("name", skillName)
 						.single();
 
-					if (findError && findError.code !== "PGRST116") {
-						throw findError;
-					}
+					// if (findError && findError.code !== "PGRST116") {
+					// 	throw findError;
+					// }
 
 					if (existingSkill) {
 						skillId = existingSkill.id;
