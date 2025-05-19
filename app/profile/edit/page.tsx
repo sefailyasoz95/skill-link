@@ -348,17 +348,17 @@ export default function EditProfilePage() {
 						}
 
 						skillId = newSkill.id;
+						const { error: linkError } = await supabase.from("user_skills").insert({
+							user_id: user.id,
+							skill_id: skillId,
+						});
+
+						if (linkError) {
+							throw linkError;
+						}
 					}
 
 					// Now insert the user_skill relationship
-					const { error: linkError } = await supabase.from("user_skills").insert({
-						user_id: user.id,
-						skill_id: skillId,
-					});
-
-					if (linkError) {
-						throw linkError;
-					}
 				}
 			} else {
 			}
