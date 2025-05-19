@@ -19,6 +19,7 @@ import { useDropzone } from "react-dropzone";
 import { useAuth } from "@/components/auth-provider";
 import { skillOptions, collaborationTermOptions } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Project } from "@/lib/types";
 
 const profileFormSchema = z.object({
 	full_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -52,9 +53,7 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 export default function EditProfilePage() {
 	const [loading, setLoading] = useState(true);
 	const [submitting, setSubmitting] = useState(false);
-	const [pastProjects, setPastProjects] = useState<{ title: string; description: string | null; url: string | null }[]>(
-		[]
-	);
+	const [pastProjects, setPastProjects] = useState<Partial<Project>[]>([]);
 	const [uploadingAvatar, setUploadingAvatar] = useState(false);
 	const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 	const [customSkills, setCustomSkills] = useState<string[]>([]);
@@ -271,7 +270,7 @@ export default function EditProfilePage() {
 	}, [user, router, toast, form]);
 
 	const addPastProject = () => {
-		setPastProjects([...pastProjects, { title: "", description: null, url: null }]);
+		setPastProjects([...pastProjects, { title: "", description: "", url: "" }]);
 	};
 
 	const removePastProject = (index: number) => {
@@ -390,14 +389,8 @@ export default function EditProfilePage() {
 			} else {
 			}
 
-			// 4. Handle past projects
-			const { error: projectsDeleteError } = await supabase.from("projects").delete().eq("user_id", user.id);
-
-			if (projectsDeleteError) {
-				throw projectsDeleteError;
-			}
 			// Insert new projects
-			const validProjects = pastProjects.filter((project) => project.title.trim());
+			const validProjects = pastProjects.filter((project) => project.id !== undefined);
 			if (validProjects.length > 0) {
 				for (const project of validProjects) {
 					const { error: addProjectError } = await supabase.from("projects").insert({
