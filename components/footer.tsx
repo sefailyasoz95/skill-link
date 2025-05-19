@@ -19,6 +19,11 @@ export default function Footer() {
 							className='text-xs sm:text-sm text-muted-foreground hover:underline underline-offset-4'>
 							Privacy
 						</Link>
+						<Link
+							href='/support'
+							className='text-xs sm:text-sm text-muted-foreground hover:underline underline-offset-4'>
+							Support
+						</Link>
 						{/* <Link href="/faq" className="text-xs sm:text-sm text-muted-foreground hover:underline underline-offset-4">
               FAQ
             </Link> */}

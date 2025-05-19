@@ -33,7 +33,15 @@ type AuthProviderProps = {
 	redirectIfUnauthenticated?: boolean;
 };
 
-const PUBLIC_ROUTES = ["/", "/auth/signin", "/auth/callback", "/how-it-works", "/auth/signup", "/privacy-and-terms"];
+const PUBLIC_ROUTES = [
+	"/",
+	"/auth/signin",
+	"/auth/callback",
+	"/how-it-works",
+	"/auth/signup",
+	"/privacy-and-terms",
+	"/support",
+];
 
 const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProviderProps) => {
 	const [user, setUser] = useState<User | null>(null);

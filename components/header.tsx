@@ -6,10 +6,9 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X, Search, MessageSquare, User, LayoutDashboard } from "lucide-react";
+import { Menu, X, Search, MessageSquare, User, LayoutDashboard, ShieldQuestion } from "lucide-react";
 import { trackEvent } from "@/lib/firebase";
 import { useAuth } from "./auth-provider";
-import Image from "next/image";
 
 export default function Header() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -53,6 +52,11 @@ export default function Header() {
 			name: "Profile",
 			path: "/profile",
 			icon: <User className='mr-2 h-4 w-4' />,
+		},
+		{
+			name: "Support",
+			path: "/support",
+			icon: <ShieldQuestion className='mr-2 h-4 w-4' />,
 		},
 	];
 
@@ -100,6 +104,12 @@ export default function Header() {
 								</Button>
 								<Button variant='outline' size='sm' onClick={signOut}>
 									Sign Out
+								</Button>
+								<Button variant='ghost' size='icon' asChild>
+									<Link href='/support'>
+										<ShieldQuestion className='h-4 w-4' />
+										<span className='sr-only'>Support</span>
+									</Link>
 								</Button>
 							</>
 						) : (
