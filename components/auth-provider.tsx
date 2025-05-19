@@ -46,12 +46,14 @@ const PUBLIC_ROUTES = [
 const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProviderProps) => {
 	const [user, setUser] = useState<User | null>(null);
 	const [session, setSession] = useState<Session | null>(null);
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(false);
 	const router = useRouter();
 	const pathname = usePathname();
 
 	useEffect(() => {
 		const getSession = async () => {
+			setLoading(true);
+
 			try {
 				const { data, error } = await supabase.auth.getSession();
 				setSession(data.session);
@@ -70,6 +72,7 @@ const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProvid
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+			setLoading(true);
 			setSession(newSession);
 			if (!newSession) {
 				setUser(null);
