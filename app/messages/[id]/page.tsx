@@ -296,7 +296,6 @@ export default function ChatPage() {
     setIsSending(true);
 
     try {
-      console.log("Sending message to chat:", chat.id);
       const messageToSend = {
         chat_id: chat.id,
         sender_id: user.id,
@@ -304,20 +303,34 @@ export default function ChatPage() {
         sent_at: new Date().toISOString(),
       };
 
-      console.log("Message data:", messageToSend);
-
       const { data, error } = await supabase
         .from("messages")
         .insert(messageToSend)
-        .select();
+        .select(`
+          id,
+          chat_id,
+          content,
+          sent_at,
+          sender_id,
+          sender:users (id, full_name, username, profile_picture)
+        `);
 
       if (error) {
         console.error("Error sending message:", error);
         throw error;
       }
 
-      console.log("Message sent successfully:", data);
-      setNewMessage("");
+      // Add the new message to the state immediately
+      if (data?.[0]) {
+        const newMsg: ExtendedMessage = {
+          ...data[0],
+          sender: user // Add the current user as sender since we know it's the sender
+        };
+        setMessages((prev) => [...prev, newMsg]);
+        setNewMessage("");
+        // Scroll to the new message
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
     } catch (err: any) {
       console.error("Error sending message:", err);
       toast({
