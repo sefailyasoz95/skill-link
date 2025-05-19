@@ -64,284 +64,284 @@ interface ConnectionUserDetails {
 }
 
 export default function MessagesPage() {
-	const [searchQuery, setSearchQuery] = useState("");
-	const [conversations, setConversations] = useState<ConversationDisplayItem[]>([]);
-	const [filteredConversations, setFilteredConversations] = useState<ConversationDisplayItem[]>([]);
-	const [connections, setConnections] = useState<UserType[]>([]);
-	const [loading, setLoading] = useState(true);
+	// const [searchQuery, setSearchQuery] = useState("");
+	// const [conversations, setConversations] = useState<ConversationDisplayItem[]>([]);
+	// const [filteredConversations, setFilteredConversations] = useState<ConversationDisplayItem[]>([]);
+	// const [connections, setConnections] = useState<UserType[]>([]);
+	// const [loading, setLoading] = useState(true);
 
-	const { user } = useAuth();
-	const router = useRouter();
-	const { toast } = useToast();
+	// const { user } = useAuth();
+	// const router = useRouter();
+	// const { toast } = useToast();
 
-	useEffect(() => {
-		if (!user) {
-			router.push("/auth/signin");
-			return;
-		}
+	// useEffect(() => {
+	// 	if (!user) {
+	// 		router.push("/auth/signin");
+	// 		return;
+	// 	}
 
-		const fetchConversations = async () => {
-			if (!user || !user.id) {
-				toast({
-					title: "Authentication Error",
-					description: "Current user not found. Please log in.",
-					variant: "destructive",
-				});
-				setLoading(false);
-				return;
-			}
+	// 	const fetchConversations = async () => {
+	// 		if (!user || !user.id) {
+	// 			toast({
+	// 				title: "Authentication Error",
+	// 				description: "Current user not found. Please log in.",
+	// 				variant: "destructive",
+	// 			});
+	// 			setLoading(false);
+	// 			return;
+	// 		}
 
-			setLoading(true);
-			try {
-				// 1. Fetch chats the current user is a member of
-				const { data: userChatMemberships, error: chatMembershipsError } = await supabase
-					.from("chat_members")
-					.select(
-						`
-        chat:chats!inner (
-          id,
-          is_group,
-          name,
-          created_at,
-          chat_members (
-            user_id,
-            user:users (
-              id,
-              full_name,
-              username,
-              profile_picture
-            )
-          ),
-          messages (
-            id,
-            content,
-            sent_at,
-            sender_id,
-            sender:users (
-              id,
-              full_name,
-              username,
-              profile_picture
-            )
-          )
-        )
-      `
-					)
-					.eq("user_id", user.id);
+	// 		setLoading(true);
+	// 		try {
+	// 			// 1. Fetch chats the current user is a member of
+	// 			const { data: userChatMemberships, error: chatMembershipsError } = await supabase
+	// 				.from("chat_members")
+	// 				.select(
+	// 					`
+	//       chat:chats!inner (
+	//         id,
+	//         is_group,
+	//         name,
+	//         created_at,
+	//         chat_members (
+	//           user_id,
+	//           user:users (
+	//             id,
+	//             full_name,
+	//             username,
+	//             profile_picture
+	//           )
+	//         ),
+	//         messages (
+	//           id,
+	//           content,
+	//           sent_at,
+	//           sender_id,
+	//           sender:users (
+	//             id,
+	//             full_name,
+	//             username,
+	//             profile_picture
+	//           )
+	//         )
+	//       )
+	//     `
+	// 				)
+	// 				.eq("user_id", user.id);
 
-				if (chatMembershipsError) throw chatMembershipsError;
+	// 			if (chatMembershipsError) throw chatMembershipsError;
 
-				// Process the data - we need to handle the nested structure carefully
-				const conversationsData: ConversationDisplayItem[] = [];
+	// 			// Process the data - we need to handle the nested structure carefully
+	// 			const conversationsData: ConversationDisplayItem[] = [];
 
-				if (userChatMemberships) {
-					for (const membership of userChatMemberships) {
-						// Type assertion - treating this as any first to allow property access
-						const rawMembership = membership as any;
-						if (!rawMembership.chat) continue;
+	// 			if (userChatMemberships) {
+	// 				for (const membership of userChatMemberships) {
+	// 					// Type assertion - treating this as any first to allow property access
+	// 					const rawMembership = membership as any;
+	// 					if (!rawMembership.chat) continue;
 
-						const chat = rawMembership.chat as ChatData;
+	// 					const chat = rawMembership.chat as ChatData;
 
-						const lastMessageData = chat.messages && chat.messages.length > 0 ? chat.messages[0] : null;
+	// 					const lastMessageData = chat.messages && chat.messages.length > 0 ? chat.messages[0] : null;
 
-						// Filter out null users and map to UserType
-						const allParticipants = chat.chat_members
-							.filter((cm: any) => cm.user !== null)
-							.map((cm: any) => {
-								const user = cm.user;
-								if (!user) return null;
-								return {
-									id: user.id,
-									full_name: user.full_name,
-									username: user.username,
-									profile_picture: user.profile_picture,
-								} as UserType;
-							})
-							.filter((user: any): user is UserType => user !== null);
+	// 					// Filter out null users and map to UserType
+	// 					const allParticipants = chat.chat_members
+	// 						.filter((cm: any) => cm.user !== null)
+	// 						.map((cm: any) => {
+	// 							const user = cm.user;
+	// 							if (!user) return null;
+	// 							return {
+	// 								id: user.id,
+	// 								full_name: user.full_name,
+	// 								username: user.username,
+	// 								profile_picture: user.profile_picture,
+	// 							} as UserType;
+	// 						})
+	// 						.filter((user: any): user is UserType => user !== null);
 
-						const otherParticipants = allParticipants.filter((p: any) => p.id !== user.id);
+	// 					const otherParticipants = allParticipants.filter((p: any) => p.id !== user.id);
 
-						let conversationName = chat.name;
-						if (!chat.is_group && !conversationName && otherParticipants.length > 0) {
-							conversationName = otherParticipants.map((p: any) => p.full_name || p.username).join(", ");
-						} else if (chat.is_group && !conversationName) {
-							conversationName = "Group Chat"; // Default group name
-						}
+	// 					let conversationName = chat.name;
+	// 					if (!chat.is_group && !conversationName && otherParticipants.length > 0) {
+	// 						conversationName = otherParticipants.map((p: any) => p.full_name || p.username).join(", ");
+	// 					} else if (chat.is_group && !conversationName) {
+	// 						conversationName = "Group Chat"; // Default group name
+	// 					}
 
-						// Only add conversations with messages
-						if (lastMessageData) {
-							const lastMessage = {
-								id: lastMessageData.id,
-								content: lastMessageData.content,
-								sent_at: lastMessageData.sent_at,
-								sender: lastMessageData.sender
-									? ({
-											id: lastMessageData.sender.id,
-											full_name: lastMessageData.sender.full_name,
-											username: lastMessageData.sender.username,
-											profile_picture: lastMessageData.sender.profile_picture,
-									  } as UserType)
-									: null,
-								is_sender: lastMessageData.sender_id === user.id,
-							};
+	// 					// Only add conversations with messages
+	// 					if (lastMessageData) {
+	// 						const lastMessage = {
+	// 							id: lastMessageData.id,
+	// 							content: lastMessageData.content,
+	// 							sent_at: lastMessageData.sent_at,
+	// 							sender: lastMessageData.sender
+	// 								? ({
+	// 										id: lastMessageData.sender.id,
+	// 										full_name: lastMessageData.sender.full_name,
+	// 										username: lastMessageData.sender.username,
+	// 										profile_picture: lastMessageData.sender.profile_picture,
+	// 								  } as UserType)
+	// 								: null,
+	// 							is_sender: lastMessageData.sender_id === user.id,
+	// 						};
 
-							conversationsData.push({
-								id: chat.id,
-								is_group: chat.is_group,
-								name: conversationName,
-								lastMessage,
-								participants: allParticipants,
-								otherParticipants: otherParticipants,
-								unreadCount: 0, // TODO: Implement unread count logic
-								created_at: chat.created_at,
-							});
-						}
-					}
-				}
+	// 						conversationsData.push({
+	// 							id: chat.id,
+	// 							is_group: chat.is_group,
+	// 							name: conversationName,
+	// 							lastMessage,
+	// 							participants: allParticipants,
+	// 							otherParticipants: otherParticipants,
+	// 							unreadCount: 0, // TODO: Implement unread count logic
+	// 							created_at: chat.created_at,
+	// 						});
+	// 					}
+	// 				}
+	// 			}
 
-				// Sort conversations by the last message's sent_at time, descending
-				const sortedConversations = conversationsData.sort((a, b) => {
-					if (!a.lastMessage && !b.lastMessage) return 0;
-					if (!a.lastMessage) return 1;
-					if (!b.lastMessage) return -1;
-					return new Date(b.lastMessage.sent_at).getTime() - new Date(a.lastMessage.sent_at).getTime();
-				});
+	// 			// Sort conversations by the last message's sent_at time, descending
+	// 			const sortedConversations = conversationsData.sort((a, b) => {
+	// 				if (!a.lastMessage && !b.lastMessage) return 0;
+	// 				if (!a.lastMessage) return 1;
+	// 				if (!b.lastMessage) return -1;
+	// 				return new Date(b.lastMessage.sent_at).getTime() - new Date(a.lastMessage.sent_at).getTime();
+	// 			});
 
-				setConversations(sortedConversations);
-				setFilteredConversations(sortedConversations);
+	// 			setConversations(sortedConversations);
+	// 			setFilteredConversations(sortedConversations);
 
-				// 2. Fetch connections to display in the "New Message" tab
-				const { data: connectionsData, error: connectionsError } = await supabase
-					.from("connections")
-					.select(
-						`
-        id,
-        status,
-        user_a,
-        user_b,
-        userA:users!connections_user_a_fkey (
-          id,
-          full_name,
-          username,
-          profile_picture,
-          bio,
-          location,
-          availability,
-          created_at
-        ),
-        userB:users!connections_user_b_fkey (
-          id,
-          full_name,
-          username,
-          profile_picture,
-          bio,
-          location,
-          availability,
-          created_at
-        )
-      `
-					)
-					.or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
-					.eq("status", "accepted");
+	// 			// 2. Fetch connections to display in the "New Message" tab
+	// 			const { data: connectionsData, error: connectionsError } = await supabase
+	// 				.from("connections")
+	// 				.select(
+	// 					`
+	//       id,
+	//       status,
+	//       user_a,
+	//       user_b,
+	//       userA:users!connections_user_a_fkey (
+	//         id,
+	//         full_name,
+	//         username,
+	//         profile_picture,
+	//         bio,
+	//         location,
+	//         availability,
+	//         created_at
+	//       ),
+	//       userB:users!connections_user_b_fkey (
+	//         id,
+	//         full_name,
+	//         username,
+	//         profile_picture,
+	//         bio,
+	//         location,
+	//         availability,
+	//         created_at
+	//       )
+	//     `
+	// 				)
+	// 				.or(`user_a.eq.${user.id},user_b.eq.${user.id}`)
+	// 				.eq("status", "accepted");
 
-				if (connectionsError) throw connectionsError;
+	// 			if (connectionsError) throw connectionsError;
 
-				const connectedUsersList: UserType[] = [];
-				const seenUserIds = new Set<string>();
+	// 			const connectedUsersList: UserType[] = [];
+	// 			const seenUserIds = new Set<string>();
 
-				// Process connections data to extract connected users
-				if (connectionsData) {
-					for (const conn of connectionsData) {
-						// Type assertion to safely access properties
-						const connection = conn as any;
+	// 			// Process connections data to extract connected users
+	// 			if (connectionsData) {
+	// 				for (const conn of connectionsData) {
+	// 					// Type assertion to safely access properties
+	// 					const connection = conn as any;
 
-						if (connection.user_a === user.id && connection.userB && !seenUserIds.has(connection.user_b)) {
-							// Convert to UserType
-							const userB = connection.userB as ConnectionUserDetails;
-							connectedUsersList.push({
-								id: userB.id,
-								full_name: userB.full_name,
-								username: userB.username,
-								profile_picture: userB.profile_picture,
-								bio: userB.bio,
-								location: userB.location,
-								availability: userB.availability,
-								created_at: userB.created_at,
-							} as UserType);
-							seenUserIds.add(connection.user_b);
-						} else if (connection.user_b === user.id && connection.userA && !seenUserIds.has(connection.user_a)) {
-							// Convert to UserType
-							const userA = connection.userA as ConnectionUserDetails;
-							connectedUsersList.push({
-								id: userA.id,
-								full_name: userA.full_name,
-								username: userA.username,
-								profile_picture: userA.profile_picture,
-								bio: userA.bio,
-								location: userA.location,
-								availability: userA.availability,
-								created_at: userA.created_at,
-							} as UserType);
-							seenUserIds.add(connection.user_a);
-						}
-					}
-				}
+	// 					if (connection.user_a === user.id && connection.userB && !seenUserIds.has(connection.user_b)) {
+	// 						// Convert to UserType
+	// 						const userB = connection.userB as ConnectionUserDetails;
+	// 						connectedUsersList.push({
+	// 							id: userB.id,
+	// 							full_name: userB.full_name,
+	// 							username: userB.username,
+	// 							profile_picture: userB.profile_picture,
+	// 							bio: userB.bio,
+	// 							location: userB.location,
+	// 							availability: userB.availability,
+	// 							created_at: userB.created_at,
+	// 						} as UserType);
+	// 						seenUserIds.add(connection.user_b);
+	// 					} else if (connection.user_b === user.id && connection.userA && !seenUserIds.has(connection.user_a)) {
+	// 						// Convert to UserType
+	// 						const userA = connection.userA as ConnectionUserDetails;
+	// 						connectedUsersList.push({
+	// 							id: userA.id,
+	// 							full_name: userA.full_name,
+	// 							username: userA.username,
+	// 							profile_picture: userA.profile_picture,
+	// 							bio: userA.bio,
+	// 							location: userA.location,
+	// 							availability: userA.availability,
+	// 							created_at: userA.created_at,
+	// 						} as UserType);
+	// 						seenUserIds.add(connection.user_a);
+	// 					}
+	// 				}
+	// 			}
 
-				setConnections(connectedUsersList);
-			} catch (error: any) {
-				toast({
-					title: "Error fetching data",
-					description: error.message || "An unexpected error occurred.",
-					variant: "destructive",
-				});
-			} finally {
-				setLoading(false);
-			}
-		};
+	// 			setConnections(connectedUsersList);
+	// 		} catch (error: any) {
+	// 			toast({
+	// 				title: "Error fetching data",
+	// 				description: error.message || "An unexpected error occurred.",
+	// 				variant: "destructive",
+	// 			});
+	// 		} finally {
+	// 			setLoading(false);
+	// 		}
+	// 	};
 
-		fetchConversations();
+	// 	fetchConversations();
 
-		// Set up a real-time subscription for new messages
-		const messagesSubscription = supabase
-			.channel("messages-channel")
-			.on(
-				"postgres_changes",
-				{
-					event: "INSERT",
-					schema: "public",
-					table: "messages",
-				},
-				() => {
-					// Refresh conversations when a new message is received
-					fetchConversations();
-				}
-			)
-			.subscribe();
+	// 	// Set up a real-time subscription for new messages
+	// 	const messagesSubscription = supabase
+	// 		.channel("messages-channel")
+	// 		.on(
+	// 			"postgres_changes",
+	// 			{
+	// 				event: "INSERT",
+	// 				schema: "public",
+	// 				table: "messages",
+	// 			},
+	// 			() => {
+	// 				// Refresh conversations when a new message is received
+	// 				fetchConversations();
+	// 			}
+	// 		)
+	// 		.subscribe();
 
-		return () => {
-			supabase.removeChannel(messagesSubscription);
-		};
-	}, [user, router, toast]);
+	// 	return () => {
+	// 		supabase.removeChannel(messagesSubscription);
+	// 	};
+	// }, [user, router, toast]);
 
-	// Filter conversations when search query changes
-	useEffect(() => {
-		if (!conversations.length) return;
+	// // Filter conversations when search query changes
+	// useEffect(() => {
+	// 	if (!conversations.length) return;
 
-		if (searchQuery) {
-			const query = searchQuery.toLowerCase();
-			const filtered = conversations.filter(
-				(conv) =>
-					conv.name?.toLowerCase().includes(query) ||
-					(conv.lastMessage?.content && conv.lastMessage.content.toLowerCase().includes(query)) ||
-					conv.otherParticipants.some(
-						(p) => p.full_name?.toLowerCase().includes(query) || p.username?.toLowerCase().includes(query)
-					)
-			);
-			setFilteredConversations(filtered);
-		} else {
-			setFilteredConversations(conversations);
-		}
-	}, [searchQuery, conversations]);
+	// 	if (searchQuery) {
+	// 		const query = searchQuery.toLowerCase();
+	// 		const filtered = conversations.filter(
+	// 			(conv) =>
+	// 				conv.name?.toLowerCase().includes(query) ||
+	// 				(conv.lastMessage?.content && conv.lastMessage.content.toLowerCase().includes(query)) ||
+	// 				conv.otherParticipants.some(
+	// 					(p) => p.full_name?.toLowerCase().includes(query) || p.username?.toLowerCase().includes(query)
+	// 				)
+	// 		);
+	// 		setFilteredConversations(filtered);
+	// 	} else {
+	// 		setFilteredConversations(conversations);
+	// 	}
+	// }, [searchQuery, conversations]);
 
 	return (
 		<div className='container py-10'>
@@ -350,8 +350,8 @@ export default function MessagesPage() {
 					<h1 className='text-3xl font-bold tracking-tight'>Messages</h1>
 					<p className='text-muted-foreground mt-2'>Chat with your connections and collaborate on projects</p>
 				</div>
-
-				<Tabs defaultValue='conversations'>
+				<h1 className='text-3xl font-bold tracking-tight'>Coming soon..</h1>
+				{/* <Tabs defaultValue='conversations'>
 					<div className='flex items-center justify-between mb-4'>
 						<TabsList>
 							<TabsTrigger value='conversations'>
@@ -539,7 +539,7 @@ export default function MessagesPage() {
 							</Card>
 						)}
 					</TabsContent>
-				</Tabs>
+				</Tabs> */}
 			</div>
 		</div>
 	);
