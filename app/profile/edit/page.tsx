@@ -390,7 +390,7 @@ export default function EditProfilePage() {
 			}
 
 			// Insert new projects
-			const validProjects = pastProjects.filter((project) => project.id !== undefined);
+			const validProjects = pastProjects.filter((project) => project.id === undefined);
 			if (validProjects.length > 0) {
 				for (const project of validProjects) {
 					const { error: addProjectError } = await supabase.from("projects").insert({
