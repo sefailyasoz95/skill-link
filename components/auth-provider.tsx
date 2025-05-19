@@ -50,25 +50,30 @@ const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProvid
 	const router = useRouter();
 	const pathname = usePathname();
 
-	useEffect(() => {
-		const getSession = async () => {
-			setLoading(true);
+	const getSession = async () => {
+		setLoading(true);
 
-			try {
-				const { data, error } = await supabase.auth.getSession();
-				setSession(data.session);
-				if (!data.session) {
-					setUser(null);
-				} else {
-					const { data: userData } = await supabase.from("users").select("*").eq("id", data.session.user.id).single();
-					setUser(userData ?? null);
-				}
-			} finally {
-				setLoading(false);
+		try {
+			const { data, error } = await supabase.auth.getSession();
+			setSession(data.session);
+			if (!data.session) {
+				setUser(null);
+			} else {
+				const { data: userData } = await supabase.from("users").select("*").eq("id", data.session.user.id).single();
+				setUser(userData ?? null);
 			}
-		};
-		getSession();
+		} catch (error) {
+			setUser(null);
+			setLoading(false);
+		}
+		setLoading(false);
+	};
 
+	useEffect(() => {
+		getSession();
+	}, []);
+
+	useEffect(() => {
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange(async (_event, newSession) => {
