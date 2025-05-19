@@ -113,7 +113,6 @@ const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProvid
 			});
 			return { error };
 		} catch (error) {
-			console.error("Error in signUp:", error);
 			return { error };
 		}
 	};
@@ -129,7 +128,6 @@ const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProvid
 			}
 			return { error };
 		} catch (error) {
-			console.error("Error in signIn:", error);
 			return { error };
 		}
 	};
@@ -140,9 +138,7 @@ const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProvid
 			setUser(null);
 			setSession(null);
 			router.push("/");
-		} catch (error) {
-			console.error("Error in signOut:", error);
-		}
+		} catch (error) {}
 	};
 
 	const googleSignIn = async (redirectTo?: string) => {
@@ -158,7 +154,6 @@ const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProvid
 			});
 			return { error };
 		} catch (error) {
-			console.error("Error in googleSignIn:", error);
 			return { error };
 		}
 	};

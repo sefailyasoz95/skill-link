@@ -20,7 +20,6 @@ export async function middleware(request: NextRequest) {
 	const {
 		data: { session },
 	} = await supabase.auth.getSession();
-	console.log("session: ", session);
 
 	// If no session and trying to access a protected route, redirect to signin
 	// if (!session && !publicRoutes.includes(path)) {

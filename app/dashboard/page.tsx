@@ -350,7 +350,6 @@ export default function DashboardPage() {
 			setConnections(processedConnections);
 			setPendingConnections(formattedPendingConnections);
 		} catch (error: any) {
-			console.error("Error fetching dashboard data:", error);
 			toast({
 				title: "Error loading dashboard",
 				description: error.message || "Failed to load dashboard data",

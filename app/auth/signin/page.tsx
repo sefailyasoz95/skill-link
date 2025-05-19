@@ -41,7 +41,6 @@ function SignInPage() {
 				});
 			}
 		} catch (error: any) {
-			console.error("Error during sign in:", error);
 			toast({
 				title: "Sign In Error",
 				description: error.message || "An unexpected error occurred",

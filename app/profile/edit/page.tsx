@@ -152,10 +152,8 @@ export default function EditProfilePage() {
 		}
 
 		const fetchProfile = async () => {
-			console.log("Fetching profile data for user:", user.id);
 			try {
 				// Fetch user basic info
-				console.log("Fetching basic user information...");
 				const { data: userData, error: userError } = await supabase
 					.from("users")
 					.select("*")
@@ -163,13 +161,9 @@ export default function EditProfilePage() {
 					.single();
 
 				if (userError) {
-					console.error("Error fetching user data:", userError);
 					throw userError;
 				}
-				console.log("User data retrieved:", userData);
 
-				// Fetch user skills
-				console.log("Fetching user skills...");
 				const { data: skillsData, error: skillsError } = await supabase
 					.from("user_skills")
 					.select(
@@ -184,39 +178,28 @@ export default function EditProfilePage() {
 					.eq("user_id", user.id);
 
 				if (skillsError) {
-					console.error("Error fetching user skills:", skillsError);
 					throw skillsError;
 				}
-				console.log("User skills retrieved:", skillsData);
 
 				// Fetch collaboration needs
-				console.log("Fetching collaboration needs...");
 				const { data: collabNeedsData, error: needsError } = await supabase
 					.from("collab_needs")
 					.select("*")
 					.eq("user_id", user.id);
 
 				if (needsError) {
-					console.error("Error fetching collaboration needs:", needsError);
 					throw needsError;
 				}
-				console.log("Collaboration needs data retrieved:", collabNeedsData);
 
 				// Fetch projects
-				console.log("Fetching user projects...");
 				const { data: projectsData, error: projectsError } = await supabase
 					.from("projects")
 					.select("*")
 					.eq("user_id", user.id);
 
 				if (projectsError) {
-					console.error("Error fetching projects:", projectsError);
 					throw projectsError;
 				}
-				console.log("User projects retrieved:", projectsData);
-
-				// Initialize form with retrieved data
-				console.log("Initializing form with retrieved data...");
 				const skills = skillsData?.map((item) => item.skills) || [];
 
 				// Process collab needs data
@@ -238,17 +221,7 @@ export default function EditProfilePage() {
 					});
 				}
 
-				console.log("Extracted collaboration needs:", collaborationNeeds);
-				console.log("Extracted collaboration terms:", collaborationTerms);
-
 				const projects = projectsData || [];
-
-				console.log("Processed data for form:", {
-					skills,
-					collaborationNeeds,
-					collaborationTerms,
-					projects,
-				});
 
 				const formValues = {
 					full_name: userData.full_name || "",
@@ -262,7 +235,6 @@ export default function EditProfilePage() {
 					past_projects: projects,
 				};
 
-				console.log("Form values being set:", formValues);
 				form.reset(formValues);
 
 				setAvatarUrl(userData.profile_picture);
@@ -270,30 +242,21 @@ export default function EditProfilePage() {
 
 				// Add custom skills and needs
 				if (skills.length > 0) {
-					console.log("Processing custom skills...");
 					const custom = skills.filter((skill: any) => !skillOptions.includes(skill.name));
 					const _custom = custom.map((skill: any) => skill.name);
 					setCustomSkills(_custom);
-					console.log("Custom skills identified:", _custom);
 				}
 
 				if (collaborationNeeds.length > 0) {
-					console.log("Processing custom collaboration needs...");
 					const custom = collaborationNeeds.filter((need: string) => !skillOptions.includes(need));
 					setCustomNeeds(custom);
-					console.log("Custom collaboration needs identified:", custom);
 				}
 
 				if (collaborationTerms.length > 0) {
-					console.log("Processing custom collaboration terms...");
 					const custom = collaborationTerms.filter((term: string) => !collaborationTermOptions.includes(term));
 					setCustomTerms(custom);
-					console.log("Custom collaboration terms identified:", custom);
 				}
-
-				console.log("Profile data loaded successfully");
 			} catch (error: any) {
-				console.error("Error in fetchProfile:", error);
 				toast({
 					title: "Error",
 					description: error.message || "Failed to load profile data",
@@ -325,17 +288,13 @@ export default function EditProfilePage() {
 
 	const onSubmit = async (values: ProfileFormValues) => {
 		if (!user) {
-			console.log("No user found, aborting submission");
 			return;
 		}
 
 		setSubmitting(true);
-		console.log("Starting profile update with values:", values);
-		console.log("Past projects to be saved:", pastProjects);
 
 		try {
 			// 1. Update the basic user information
-			console.log("Step 1: Updating basic user information");
 			const { data: userData, error: userError } = await supabase
 				.from("users")
 				.upsert({
@@ -350,30 +309,18 @@ export default function EditProfilePage() {
 				.select();
 
 			if (userError) {
-				console.error("Error updating user data:", userError);
 				throw userError;
 			}
-			console.log("Basic user information updated successfully:", userData);
-
-			// 2. Handle skills - first delete existing skills for this user
-			console.log("Step 2: Handling skills");
-			console.log("Step 2.1: Deleting existing user skills");
 			const { error: skillDeleteError } = await supabase.from("user_skills").delete().eq("user_id", user.id);
 
 			if (skillDeleteError) {
-				console.error("Error deleting skills:", skillDeleteError);
 				throw skillDeleteError;
 			}
-			console.log("Existing skills deleted successfully");
 
 			// Insert new skills
 			if (values.skills && values.skills.length > 0) {
-				console.log("Step 2.2: Processing new skills:", values.skills);
-
 				// First ensure all skills exist in the skills table
 				for (const skillName of values.skills) {
-					console.log(`Processing skill: ${skillName}`);
-
 					// Try to find existing skill
 					let skillId;
 					const { data: existingSkill, error: findError } = await supabase
@@ -383,15 +330,12 @@ export default function EditProfilePage() {
 						.single();
 
 					if (findError && findError.code !== "PGRST116") {
-						console.error(`Error finding skill ${skillName}:`, findError);
 						throw findError;
 					}
 
 					if (existingSkill) {
-						console.log(`Found existing skill ${skillName} with ID ${existingSkill.id}`);
 						skillId = existingSkill.id;
 					} else {
-						console.log(`Creating new skill: ${skillName}`);
 						// Create new skill
 						const { data: newSkill, error: createError } = await supabase
 							.from("skills")
@@ -400,55 +344,37 @@ export default function EditProfilePage() {
 							.single();
 
 						if (createError) {
-							console.error(`Error creating skill ${skillName}:`, createError);
 							throw createError;
 						}
 
-						console.log(`Created new skill ${skillName} with ID ${newSkill.id}`);
 						skillId = newSkill.id;
 					}
 
 					// Now insert the user_skill relationship
-					console.log(`Adding user-skill relationship for skill ID ${skillId}`);
 					const { error: linkError } = await supabase.from("user_skills").insert({
 						user_id: user.id,
 						skill_id: skillId,
 					});
 
 					if (linkError) {
-						console.error(`Error linking user to skill ${skillName}:`, linkError);
 						throw linkError;
 					}
-
-					console.log(`Successfully linked user to skill ${skillName}`);
 				}
-
-				console.log("All skills processed successfully");
 			} else {
-				console.log("No skills to add");
 			}
 
 			// 3. Handle collaboration needs and terms
-			console.log("Step 3: Handling collaboration needs and terms");
-			console.log("Step 3.1: Deleting existing collaboration data");
 			const { error: collabDeleteError } = await supabase.from("collab_needs").delete().eq("user_id", user.id);
 
 			if (collabDeleteError) {
-				console.error("Error deleting collaboration data:", collabDeleteError);
 				throw collabDeleteError;
 			}
-			console.log("Existing collaboration data deleted successfully");
 
 			// Insert new combined collaboration data
 			if (
 				(values.collaboration_needs && values.collaboration_needs.length > 0) ||
 				(values.collaboration_terms && values.collaboration_terms.length > 0)
 			) {
-				console.log("Step 3.2: Adding new collaboration data:", {
-					needs: values.collaboration_needs,
-					terms: values.collaboration_terms,
-				});
-
 				// Insert a single record with both arrays
 				const { error: addCollabError } = await supabase.from("collab_needs").insert({
 					user_id: user.id,
@@ -459,33 +385,21 @@ export default function EditProfilePage() {
 				});
 
 				if (addCollabError) {
-					console.error("Error adding collaboration data:", addCollabError);
 					throw addCollabError;
 				}
-
-				console.log("Collaboration data added successfully");
 			} else {
-				console.log("No collaboration data to add");
 			}
 
 			// 4. Handle past projects
-			console.log("Step 4: Handling past projects");
-			console.log("Step 4.1: Deleting existing projects");
 			const { error: projectsDeleteError } = await supabase.from("projects").delete().eq("user_id", user.id);
 
 			if (projectsDeleteError) {
-				console.error("Error deleting projects:", projectsDeleteError);
 				throw projectsDeleteError;
 			}
-			console.log("Existing projects deleted successfully");
-
 			// Insert new projects
 			const validProjects = pastProjects.filter((project) => project.title.trim());
 			if (validProjects.length > 0) {
-				console.log("Step 4.2: Adding new projects:", validProjects);
-
 				for (const project of validProjects) {
-					console.log(`Adding project: ${project.title}`);
 					const { error: addProjectError } = await supabase.from("projects").insert({
 						user_id: user.id,
 						title: project.title,
@@ -495,19 +409,11 @@ export default function EditProfilePage() {
 					});
 
 					if (addProjectError) {
-						console.error(`Error adding project ${project.title}:`, addProjectError);
 						throw addProjectError;
 					}
-
-					console.log(`Successfully added project: ${project.title}`);
 				}
-
-				console.log("All projects added successfully");
 			} else {
-				console.log("No valid projects to add");
 			}
-
-			console.log("Profile update completed successfully!");
 			toast({
 				title: "Profile updated",
 				description: "Your profile has been successfully updated",
@@ -515,7 +421,6 @@ export default function EditProfilePage() {
 
 			router.push("/profile");
 		} catch (error: any) {
-			console.error("Profile update failed:", error);
 			toast({
 				title: "Error",
 				description: error.message || "Failed to update profile",
@@ -838,7 +743,6 @@ export default function EditProfilePage() {
 										control={form.control}
 										name='collaboration_needs'
 										render={({ field }) => {
-											console.log("Rendering collaboration_needs field with values:", field.value);
 											return (
 												<FormItem>
 													<FormLabel>Looking For</FormLabel>
@@ -869,7 +773,6 @@ export default function EditProfilePage() {
 										control={form.control}
 										name='collaboration_terms'
 										render={({ field }) => {
-											console.log("Rendering collaboration_terms field with values:", field.value);
 											return (
 												<FormItem>
 													<FormLabel>Collaboration Terms</FormLabel>
