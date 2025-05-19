@@ -100,7 +100,7 @@ export default function SignInPageSuspense() {
 			fallback={
 				<div className='container py-10 flex flex-col items-center justify-center min-h-[50vh]'>
 					<div className='border-b-2 border-b-foreground rounded-b-full animate-spin w-14 h-14' />
-					<p className='mt-4 text-muted-foreground'>Loading dashboard...</p>
+					<p className='mt-4 text-muted-foreground'>Loading...</p>
 				</div>
 			}>
 			<SignInPage />
