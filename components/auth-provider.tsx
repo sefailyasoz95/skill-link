@@ -146,10 +146,15 @@ const AuthProvider = ({ children, redirectIfUnauthenticated = true }: AuthProvid
 			if (redirectTo) {
 				sessionStorage.setItem("redirectAfterAuth", redirectTo);
 			}
+			const _redirectTo =
+				process.env.NEXT_PUBLIC_NODE_ENV === "development"
+					? "http://localhost:3000/auth/callback"
+					: "https://skilllink.co/auth/callback";
+
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider: "google",
 				options: {
-					redirectTo: `${window.location.origin}/auth/callback`,
+					redirectTo: _redirectTo,
 				},
 			});
 			return { error };
