@@ -339,57 +339,61 @@ export default function EditProfilePage() {
       if (userError) {
         throw userError;
       }
-
+      console.log("values.skills: ", values.skills);
       // Insert new skills
       if (values.skills && values.skills.length > 0) {
-        // First ensure all skills exist in the skills table
         for (const skillName of values.skills) {
-          // Try to find existing skill
           let skillId;
+
+          // 1. Check if skill exists
           const { data: existingSkill, error: findError } = await supabase
             .from("skills")
             .select("id")
             .eq("name", skillName)
             .single();
 
-          // if (findError && findError.code !== "PGRST116") {
-          // 	throw findError;
-          // }
-          console.log("existingSkill ", existingSkill);
+          if (findError && findError.code !== "PGRST116") {
+            // Not a "no rows" error
+            throw findError;
+          }
 
-          if (existingSkill) {
-            skillId = existingSkill.id;
-          } else {
-            // Create new skill
+          if (!existingSkill) {
+            // 2. Create new skill
             const { data: newSkill, error: createError } = await supabase
               .from("skills")
               .insert({ name: skillName })
               .select("id")
               .single();
-            console.log("newSkill: ", newSkill);
-            console.log("createError: ", createError);
-            console.log("1: skillId ", skillId);
 
-            if (createError) {
-              throw createError;
-            }
+            if (createError) throw createError;
             skillId = newSkill.id;
+          } else {
+            skillId = existingSkill.id;
           }
-          const { error: linkError, data } = await supabase
-            .from("user_skills")
-            .insert({
-              user_id: user.id,
-              skill_id: skillId,
-            });
-          console.log("linkError: ", linkError);
-          console.log("datadatadata: ", data);
 
-          if (linkError) {
-            throw linkError;
+          // 3. Check if user already has this skill
+          const { data: existingUserSkill, error: userSkillError } =
+            await supabase
+              .from("user_skills")
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("skill_id", skillId)
+              .maybeSingle();
+
+          if (userSkillError) throw userSkillError;
+
+          if (!existingUserSkill) {
+            // 4. Insert into user_skills if not already linked
+            const { error: linkError } = await supabase
+              .from("user_skills")
+              .insert({
+                user_id: user.id,
+                skill_id: skillId,
+              });
+
+            if (linkError) throw linkError;
           }
-          // Now insert the user_skill relationship
         }
-      } else {
       }
 
       // 3. Handle collaboration needs and terms
