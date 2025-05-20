@@ -34,7 +34,7 @@ import { useDropzone } from "react-dropzone";
 import { useAuth } from "@/components/auth-provider";
 import { skillOptions, collaborationTermOptions } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Project } from "@/lib/types";
+import { Project, Skill } from "@/lib/types";
 
 const profileFormSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -342,6 +342,34 @@ export default function EditProfilePage() {
       console.log("values.skills: ", values.skills);
       // Insert new skills
       if (values.skills && values.skills.length > 0) {
+        // Get all the user's current skills
+        const { data: currentUserSkills, error: fetchError } = await supabase
+          .from("user_skills")
+          .select("skill_id, skills(name)")
+          .eq("user_id", user.id);
+
+        if (fetchError) throw fetchError;
+
+        // Find skills to remove (skills user had but are no longer in values.skills)
+        const skillsToRemove = [] as Skill[];
+        for (const userSkill of currentUserSkills as any) {
+          if (!values.skills.includes(userSkill.skills?.name)) {
+            skillsToRemove.push(userSkill.skill_id);
+          }
+        }
+
+        // Remove skills that are no longer selected
+        if (skillsToRemove.length > 0) {
+          const { error: deleteError } = await supabase
+            .from("user_skills")
+            .delete()
+            .eq("user_id", user.id)
+            .in("skill_id", skillsToRemove);
+
+          if (deleteError) throw deleteError;
+        }
+
+        // Continue with the existing code to add new skills
         for (const skillName of values.skills) {
           let skillId;
 
