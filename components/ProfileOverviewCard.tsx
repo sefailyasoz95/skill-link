@@ -79,7 +79,7 @@ export function ProfileOverviewCard({
                       key={index}
                       className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary"
                     >
-                      {skill.name}
+                      {skill}
                     </span>
                   ))
                 ) : (
