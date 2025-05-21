@@ -41,8 +41,8 @@ const profileFormSchema = z.object({
   profile_picture: z.string().nullable(),
   bio: z.string().max(500, "Bio cannot exceed 500 characters").nullable(),
   skills: z.array(z.string()).min(1, "At least one skill is required"),
-  collaboration_needs: z.array(z.string()),
-  collaboration_terms: z.array(z.string()),
+  looking_for: z.array(z.string()),
+  conditions: z.array(z.string()),
   availability: z.string().nullable(),
   location: z.string().nullable(),
   past_projects: z
@@ -72,8 +72,6 @@ export default function EditProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [customSkills, setCustomSkills] = useState<string[]>([]);
-  const [customNeeds, setCustomNeeds] = useState<string[]>([]);
-  const [customTerms, setCustomTerms] = useState<string[]>([]);
 
   const { user } = useAuth();
   const router = useRouter();
@@ -86,8 +84,8 @@ export default function EditProfilePage() {
       profile_picture: null,
       bio: "",
       skills: [],
-      collaboration_needs: [],
-      collaboration_terms: [],
+      conditions: [],
+      looking_for: [],
       availability: null,
       location: "",
       past_projects: [],
@@ -181,34 +179,6 @@ export default function EditProfilePage() {
         if (userError) {
           throw userError;
         }
-
-        const { data: skillsData, error: skillsError } = await supabase
-          .from("user_skills")
-          .select(
-            `
-            skill_id,
-            skills (
-              id,
-              name
-            )
-          `
-          )
-          .eq("user_id", user.id);
-
-        if (skillsError) {
-          throw skillsError;
-        }
-
-        // Fetch collaboration needs
-        const { data: collabNeedsData, error: needsError } = await supabase
-          .from("collab_needs")
-          .select("*")
-          .eq("user_id", user.id);
-
-        if (needsError) {
-          throw needsError;
-        }
-
         // Fetch projects
         const { data: projectsData, error: projectsError } = await supabase
           .from("projects")
@@ -218,26 +188,6 @@ export default function EditProfilePage() {
         if (projectsError) {
           throw projectsError;
         }
-        const skills = skillsData?.map((item) => item.skills) || [];
-
-        // Process collab needs data
-        let collaborationNeeds: string[] = [];
-        let collaborationTerms: string[] = [];
-
-        if (collabNeedsData && collabNeedsData.length > 0) {
-          // For each collab need entry, extract the looking_for and conditions arrays
-          collabNeedsData.forEach((need) => {
-            // Extract looking_for values for the collaboration_needs field
-            if (need.looking_for && Array.isArray(need.looking_for)) {
-              collaborationNeeds = [...collaborationNeeds, ...need.looking_for];
-            }
-
-            // Extract conditions values for the collaboration_terms field
-            if (need.conditions && Array.isArray(need.conditions)) {
-              collaborationTerms = [...collaborationTerms, ...need.conditions];
-            }
-          });
-        }
 
         const projects = projectsData || [];
 
@@ -245,41 +195,18 @@ export default function EditProfilePage() {
           full_name: userData.full_name || "",
           profile_picture: userData.profile_picture,
           bio: userData.bio || "",
-          skills: skills.map((skill: any) => skill.name),
-          collaboration_needs: collaborationNeeds,
-          collaboration_terms: collaborationTerms,
+          skills: userData.skills,
           availability: userData.availability || null,
           location: userData.location || "",
           past_projects: projects,
+          looking_for: userData.looking_for,
+          conditions: userData.conditions,
         };
 
         form.reset(formValues);
 
         setAvatarUrl(userData.profile_picture);
         setPastProjects(projects);
-
-        // Add custom skills and needs
-        if (skills.length > 0) {
-          const custom = skills.filter(
-            (skill: any) => !skillOptions.includes(skill.name)
-          );
-          const _custom = custom.map((skill: any) => skill.name);
-          setCustomSkills(_custom);
-        }
-
-        if (collaborationNeeds.length > 0) {
-          const custom = collaborationNeeds.filter(
-            (need: string) => !skillOptions.includes(need)
-          );
-          setCustomNeeds(custom);
-        }
-
-        if (collaborationTerms.length > 0) {
-          const custom = collaborationTerms.filter(
-            (term: string) => !collaborationTermOptions.includes(term)
-          );
-          setCustomTerms(custom);
-        }
       } catch (error: any) {
         toast({
           title: "Error",
@@ -333,127 +260,14 @@ export default function EditProfilePage() {
           location: values.location || null,
           availability: values.availability,
           updated_at: new Date().toISOString(),
+          skills: values.skills,
+          looking_for: values.looking_for,
+          conditions: values.conditions,
         })
         .select();
 
       if (userError) {
         throw userError;
-      }
-      console.log("values.skills: ", values.skills);
-      // Insert new skills
-      if (values.skills && values.skills.length > 0) {
-        // Get all the user's current skills
-        const { data: currentUserSkills, error: fetchError } = await supabase
-          .from("user_skills")
-          .select("skill_id, skills(name)")
-          .eq("user_id", user.id);
-
-        if (fetchError) throw fetchError;
-
-        // Find skills to remove (skills user had but are no longer in values.skills)
-        const skillsToRemove = [] as Skill[];
-        for (const userSkill of currentUserSkills as any) {
-          if (!values.skills.includes(userSkill.skills?.name)) {
-            skillsToRemove.push(userSkill.skill_id);
-          }
-        }
-
-        // Remove skills that are no longer selected
-        if (skillsToRemove.length > 0) {
-          const { error: deleteError } = await supabase
-            .from("user_skills")
-            .delete()
-            .eq("user_id", user.id)
-            .in("skill_id", skillsToRemove);
-
-          if (deleteError) throw deleteError;
-        }
-
-        // Continue with the existing code to add new skills
-        for (const skillName of values.skills) {
-          let skillId;
-
-          // 1. Check if skill exists
-          const { data: existingSkill, error: findError } = await supabase
-            .from("skills")
-            .select("id")
-            .eq("name", skillName)
-            .single();
-
-          if (findError && findError.code !== "PGRST116") {
-            // Not a "no rows" error
-            throw findError;
-          }
-
-          if (!existingSkill) {
-            // 2. Create new skill
-            const { data: newSkill, error: createError } = await supabase
-              .from("skills")
-              .insert({ name: skillName })
-              .select("id")
-              .single();
-
-            if (createError) throw createError;
-            skillId = newSkill.id;
-          } else {
-            skillId = existingSkill.id;
-          }
-
-          // 3. Check if user already has this skill
-          const { data: existingUserSkill, error: userSkillError } =
-            await supabase
-              .from("user_skills")
-              .select("*")
-              .eq("user_id", user.id)
-              .eq("skill_id", skillId)
-              .maybeSingle();
-
-          if (userSkillError) throw userSkillError;
-
-          if (!existingUserSkill) {
-            // 4. Insert into user_skills if not already linked
-            const { error: linkError } = await supabase
-              .from("user_skills")
-              .insert({
-                user_id: user.id,
-                skill_id: skillId,
-              });
-
-            if (linkError) throw linkError;
-          }
-        }
-      }
-
-      // 3. Handle collaboration needs and terms
-      const { error: collabDeleteError } = await supabase
-        .from("collab_needs")
-        .delete()
-        .eq("user_id", user.id);
-
-      if (collabDeleteError) {
-        throw collabDeleteError;
-      }
-
-      // Insert new combined collaboration data
-      if (
-        (values.collaboration_needs && values.collaboration_needs.length > 0) ||
-        (values.collaboration_terms && values.collaboration_terms.length > 0)
-      ) {
-        // Insert a single record with both arrays
-        const { error: addCollabError } = await supabase
-          .from("collab_needs")
-          .insert({
-            user_id: user.id,
-            looking_for: values.collaboration_needs || [],
-            conditions: values.collaboration_terms || [],
-            description: "", // Add a default value for the description field
-            created_at: new Date().toISOString(),
-          });
-
-        if (addCollabError) {
-          throw addCollabError;
-        }
-      } else {
       }
 
       // Insert new projects
@@ -837,7 +651,7 @@ export default function EditProfilePage() {
 
                   <FormField
                     control={form.control}
-                    name="collaboration_needs"
+                    name="looking_for"
                     render={({ field }) => {
                       return (
                         <FormItem>
@@ -845,17 +659,14 @@ export default function EditProfilePage() {
                           <FormControl>
                             <MultiSelect
                               placeholder="Select skills you're looking for"
-                              options={[...skillOptions, ...customNeeds].map(
-                                (skill) => ({
-                                  label: skill,
-                                  value: skill,
-                                })
-                              )}
+                              options={[...skillOptions].map((skill) => ({
+                                label: skill,
+                                value: skill,
+                              }))}
                               selected={field.value || []}
                               onChange={field.onChange}
                               creatable
                               onCreateOption={(newNeed) => {
-                                setCustomNeeds((prev) => [...prev, newNeed]);
                                 field.onChange([
                                   ...(field.value || []),
                                   newNeed,
@@ -875,7 +686,7 @@ export default function EditProfilePage() {
 
                   <FormField
                     control={form.control}
-                    name="collaboration_terms"
+                    name="conditions"
                     render={({ field }) => {
                       return (
                         <FormItem>
@@ -883,18 +694,16 @@ export default function EditProfilePage() {
                           <FormControl>
                             <MultiSelect
                               placeholder="Select your preferred collaboration terms"
-                              options={[
-                                ...collaborationTermOptions,
-                                ...customTerms,
-                              ].map((term) => ({
-                                label: term,
-                                value: term,
-                              }))}
+                              options={[...collaborationTermOptions].map(
+                                (term) => ({
+                                  label: term,
+                                  value: term,
+                                })
+                              )}
                               selected={field.value || []}
                               onChange={field.onChange}
                               creatable
                               onCreateOption={(newTerm) => {
-                                setCustomTerms((prev) => [...prev, newTerm]);
                                 field.onChange([
                                   ...(field.value || []),
                                   newTerm,

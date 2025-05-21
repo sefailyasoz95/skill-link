@@ -7,9 +7,10 @@ export interface User {
   location: string | null;
   availability: "part-time" | "full-time" | "weekends" | null;
   created_at: string; // ISO date string (TIMESTAMPTZ)
-  skills?: Skill[]; // from user_skills
+  skills: string[] | null;
   projects?: Project[]; // one-to-many
-  collab_needs?: CollabNeed[]; // one-to-many
+  looking_for: string[] | null;
+  conditions: string[] | null;
   profile_views_received?: ProfileView[]; // viewed_user_id = this user
   profile_views_made?: ProfileView[]; // viewer_id = this user
   chat_memberships?: ChatMember[]; // many-to-many via chat_members
