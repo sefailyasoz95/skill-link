@@ -153,7 +153,7 @@ export default function DashboardPage() {
       if (pendingError) throw pendingError;
 
       // Fix the connections data typing
-      const processedConnections: ConnectionWithUser[] = [
+      const processedConnections: any[] = [
         ...(connectionsAsA
           ? connectionsAsA.map((conn: any) => {
               const userObject =
@@ -219,7 +219,7 @@ export default function DashboardPage() {
       ];
 
       // Fix the profile views data typing
-      const formattedViews: ProfileView[] = viewsData
+      const formattedViews: any[] = viewsData
         ? viewsData.map((view: any) => {
             const viewerObject =
               view.viewer && !Array.isArray(view.viewer)
@@ -250,7 +250,7 @@ export default function DashboardPage() {
         : [];
 
       // Fix the pending connections data typing
-      const formattedPendingConnections: ConnectionWithUser[] = pendingRequests
+      const formattedPendingConnections: any[] = pendingRequests
         ? pendingRequests.map((conn: any) => {
             const userObject =
               conn.requesting_user && !Array.isArray(conn.requesting_user)

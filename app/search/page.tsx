@@ -553,42 +553,73 @@ export default function SearchPage() {
                       <CardContent className="space-y-4">
                         <div>
                           <h4 className="text-sm font-medium">Skills</h4>
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {profile.skills?.slice(0, 4).map((skill, i) => (
-                              <Badge key={i} variant="secondary">
-                                {skill}
-                              </Badge>
-                            ))}
-                            {profile.skills && profile.skills.length > 4 && (
-                              <Badge variant="outline">
-                                +{profile.skills.length - 4}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        {profile.conditions &&
-                          profile.conditions.length > 0 && (
-                            <div>
-                              <h4 className="text-sm font-medium">
-                                Conditions
-                              </h4>
-                              <div className="mt-1 flex flex-wrap gap-1">
-                                {profile?.conditions
-                                  .slice(0, 2)
-                                  .map((con, i) => (
-                                    <Badge key={i} variant="outline">
-                                      {con}
-                                    </Badge>
-                                  ))}
-                                {profile.conditions &&
-                                  profile.conditions.length > 2 && (
-                                    <Badge variant="outline">
-                                      +{profile.conditions.length - 2}
-                                    </Badge>
-                                  )}
-                              </div>
+                          {profile.skills && profile.skills.length ? (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {profile.skills?.slice(0, 4).map((skill, i) => (
+                                <Badge key={i} variant="secondary">
+                                  {skill}
+                                </Badge>
+                              ))}
+                              {profile.skills && profile.skills.length > 4 && (
+                                <Badge variant="outline">
+                                  +{profile.skills.length - 4}
+                                </Badge>
+                              )}
                             </div>
+                          ) : (
+                            <small className="text-muted-foreground text-xs">
+                              {profile.full_name} did not add a skill yet
+                            </small>
                           )}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium">Looking For</h4>
+                          {profile.looking_for && profile.looking_for.length ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {profile?.looking_for
+                                .slice(0, 2)
+                                .map((con, i) => (
+                                  <Badge key={i} variant="outline">
+                                    {con}
+                                  </Badge>
+                                ))}
+                              {profile.looking_for &&
+                                profile.looking_for.length > 2 && (
+                                  <Badge variant="outline">
+                                    +{profile.looking_for.length - 2}
+                                  </Badge>
+                                )}
+                            </div>
+                          ) : (
+                            <small className="text-muted-foreground text-xs">
+                              {profile.full_name} did not specify what they are
+                              looking for yet
+                            </small>
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium">Conditions</h4>
+                          {profile.conditions && profile.conditions.length ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {profile?.conditions.slice(0, 2).map((con, i) => (
+                                <Badge key={i} variant="outline">
+                                  {con}
+                                </Badge>
+                              ))}
+                              {profile.conditions &&
+                                profile.conditions.length > 2 && (
+                                  <Badge variant="outline">
+                                    +{profile.conditions.length - 2}
+                                  </Badge>
+                                )}
+                            </div>
+                          ) : (
+                            <small className="text-muted-foreground text-xs">
+                              {profile.full_name} did not specify any conditions
+                              yet
+                            </small>
+                          )}
+                        </div>
                       </CardContent>
                       <CardFooter className="flex justify-between">
                         <Button variant="outline" asChild>
@@ -708,22 +739,84 @@ export default function SearchPage() {
                           </p>
                         )}
                         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium">
-                              Looking for:
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              {profile.looking_for?.map((looking, i) => (
-                                <Badge key={i} variant="outline">
-                                  {looking}
-                                </Badge>
-                              ))}
+                          <div className="flex flex-col space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium">
+                                Skills:
+                              </span>
+                              {profile.skills && profile.skills.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {profile.skills?.map((looking, i) => (
+                                    <Badge key={i} variant="outline">
+                                      {looking}
+                                    </Badge>
+                                  ))}
+                                  {profile.skills &&
+                                    profile.skills.length > 3 && (
+                                      <Badge variant="outline">
+                                        +{profile.skills.length - 2}
+                                      </Badge>
+                                    )}
+                                </div>
+                              ) : (
+                                <small className="text-muted-foreground">
+                                  {profile.full_name} did not add a skill yet
+                                </small>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium">
+                                Looking for:
+                              </span>
                               {profile.looking_for &&
-                                profile.looking_for.length > 3 && (
-                                  <Badge variant="outline">
-                                    +{profile.looking_for.length - 2}
-                                  </Badge>
-                                )}
+                              profile.looking_for.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {profile.looking_for?.map((looking, i) => (
+                                    <Badge key={i} variant="outline">
+                                      {looking}
+                                    </Badge>
+                                  ))}
+                                  {profile.looking_for &&
+                                    profile.looking_for.length > 3 && (
+                                      <Badge variant="outline">
+                                        +{profile.looking_for.length - 2}
+                                      </Badge>
+                                    )}
+                                </div>
+                              ) : (
+                                <small className="text-muted-foreground">
+                                  {profile.full_name} did not specify what they
+                                  are looking for yet
+                                </small>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-medium">
+                                Conditions:
+                              </span>
+                              {profile.conditions &&
+                              profile.conditions.length ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {profile.conditions
+                                    ?.slice(0, 3)
+                                    ?.map((looking, i) => (
+                                      <Badge key={i} variant="outline">
+                                        {looking}
+                                      </Badge>
+                                    ))}
+                                  {profile.conditions &&
+                                    profile.conditions.length > 3 && (
+                                      <Badge variant="outline">
+                                        +{profile.conditions.length - 3}
+                                      </Badge>
+                                    )}
+                                </div>
+                              ) : (
+                                <small className="text-muted-foreground">
+                                  {profile.full_name} did not specify any
+                                  conditions yet
+                                </small>
+                              )}
                             </div>
                           </div>
                           <div className="mt-4 sm:mt-0 flex space-x-2">
