@@ -1,5 +1,5 @@
 // api.ts
-import { supabase } from "@/lib/supabase-client";
+import { supabase } from "@/lib/supabase-server";
 import { User, Connection, ConnectionStatus } from "@/lib/types";
 
 export async function fetchUserProfile(userId: string): Promise<User> {
