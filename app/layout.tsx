@@ -16,8 +16,8 @@ export const metadata: Metadata = {
 		"solopreneur, collaboration, projects, networking, skills, connect, build, grow, community, startup, entrepreneurship, freelancing, partnerships, innovation, ideas, teamwork, growth, support, resources",
 	authors: [
 		{
-			name: "Skill Link",
-			url: "https://skilllink.co",
+			name: "Softwarify",
+			url: "https://softwarify.co",
 		},
 	],
 	creator: "Softwarify",

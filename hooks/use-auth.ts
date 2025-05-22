@@ -3,9 +3,10 @@
 import { supabase } from "@/lib/supabase-server";
 import { User } from "@/lib/types";
 import { useEffect, useState } from "react";
-
+import { useRouter } from "next/navigation";
 export function useAuth() {
 	const [user, setUser] = useState<User | null>(null);
+	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(true);
 	const googleSignIn = async (redirectTo?: string) => {
 		try {
@@ -57,6 +58,7 @@ export function useAuth() {
 				setUser(null);
 			} finally {
 				setIsLoading(false);
+				router.push("/dashboard");
 			}
 		}
 
