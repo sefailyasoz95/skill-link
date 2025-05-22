@@ -2,14 +2,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
 
 function SignInPage() {
 	const router = useRouter();
-	const { googleSignIn, user, loading } = useAuth();
+	const { googleSignIn, user, isLoading: loading } = useAuth();
 	const { toast } = useToast();
 	const searchParams = useSearchParams();
 	const redirectTo = searchParams.get("redirectTo") || "/dashboard";
@@ -36,7 +36,7 @@ function SignInPage() {
 			if (res.error) {
 				toast({
 					title: "Sign In Error",
-					description: res.error.message || "Failed to sign in with Google",
+					description: (res.error as any)?.message || "Failed to sign in with Google",
 					variant: "destructive",
 				});
 			}

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase-client";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Search, UserCog, Activity, Settings, Shield, AlertTriangle } from "lucide-react";
@@ -23,8 +22,9 @@ import {
 	Pie,
 	Cell,
 } from "recharts";
-import { useAuth } from "@/components/auth-provider";
 import { User } from "@/lib/types";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase-server";
 
 type StatsData = {
 	totalUsers: number;

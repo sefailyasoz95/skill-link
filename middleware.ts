@@ -1,32 +1,57 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerSupabaseClient } from "./lib/supabase-server";
+import { createMiddleware } from "./lib/supabase-server";
 
-export async function middleware(request: NextRequest) {
-	const requestUrl = new URL(request.url);
-	const path = requestUrl.pathname;
-
-	// Public routes that don't require auth
+export async function middleware(req: NextRequest) {
 	const publicRoutes = ["/", "/auth/signin", "/how-it-works", "/privacy-and-terms", "/support"];
+	const res = NextResponse.next();
+	const cookieStore = req.cookies;
+	const supabase = await createMiddleware({ cookies: () => cookieStore });
+	try {
+		const {
+			data: { session },
+			error,
+		} = await supabase.auth.getSession();
+		console.log("error: ", error);
 
-	// If the route is public, allow access without checking auth
-	if (publicRoutes.includes(path)) {
+		res.headers.set("x-middleware-cache", "no-cache");
+		res.headers.set("x-debug-session", session ? "exists" : "none");
+		res.headers.set("x-debug-url", req.nextUrl.pathname);
+		if (error) {
+			if (!publicRoutes.includes(req.nextUrl.pathname)) {
+				return res;
+			}
+			return NextResponse.redirect(new URL("/", req.url));
+		}
+		// Skip auth check for auth callback
+		if (req.nextUrl.pathname.startsWith("/auth/callback")) {
+			return res;
+		}
+		if (!session && !publicRoutes.includes(req.nextUrl.pathname)) {
+			return NextResponse.redirect(new URL("/", req.url));
+		}
+		if (session && req.nextUrl.pathname === "/") {
+			return NextResponse.redirect(new URL("/dashboard", req.url));
+		}
+		const requestUrl = new URL(req.url);
+		const path = requestUrl.pathname;
+
+		// Public routes that don't require auth
+
+		// If the route is public, allow access without checking auth
+		if (publicRoutes.includes(path)) {
+			return NextResponse.next();
+		}
+
 		return NextResponse.next();
+	} catch (error) {
+		res.cookies.delete("sb-access-token");
+		res.cookies.delete("sb-refresh-token");
+
+		if (!req.nextUrl.pathname.startsWith("/dashboard")) {
+			return res;
+		}
+		return NextResponse.redirect(new URL("/", req.url));
 	}
-
-	// Initialize Supabase client
-	const supabase = await createServerSupabaseClient();
-
-	// Check if user is authenticated
-	const {
-		data: { session },
-	} = await supabase.auth.getSession();
-
-	// If no session and trying to access a protected route, redirect to signin
-	// if (!session && !publicRoutes.includes(path)) {
-	//   return NextResponse.redirect(new URL("/auth/signin", request.url));
-	// }
-
-	return NextResponse.next();
 }
 
 // Configure which paths the middleware runs on

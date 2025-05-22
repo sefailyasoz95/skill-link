@@ -6,14 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase-client";
 import { useToast } from "@/hooks/use-toast";
 import { Search, User, MessageSquare, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/components/auth-provider";
-
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase-server";
 import { Chat, ChatMember, ConversationDisplayItem, Message, User as UserType, Connection } from "@/lib/types";
 
 // Define interface for chat member with nested user info
@@ -68,17 +67,10 @@ export default function MessagesPage() {
 	// const [conversations, setConversations] = useState<ConversationDisplayItem[]>([]);
 	// const [filteredConversations, setFilteredConversations] = useState<ConversationDisplayItem[]>([]);
 	// const [connections, setConnections] = useState<UserType[]>([]);
-	// const [loading, setLoading] = useState(true);
 
-	// const { user } = useAuth();
+	// const { user, isLoading:loading } = useAuth();
 	// const router = useRouter();
 	// const { toast } = useToast();
-
-	// useEffect(() => {
-	// 	if (!user) {
-	// 		router.push("/auth/signin");
-	// 		return;
-	// 	}
 
 	// 	const fetchConversations = async () => {
 	// 		if (!user || !user.id) {
@@ -90,8 +82,6 @@ export default function MessagesPage() {
 	// 			setLoading(false);
 	// 			return;
 	// 		}
-
-	// 		setLoading(true);
 	// 		try {
 	// 			// 1. Fetch chats the current user is a member of
 	// 			const { data: userChatMemberships, error: chatMembershipsError } = await supabase
@@ -294,12 +284,13 @@ export default function MessagesPage() {
 	// 				description: error.message || "An unexpected error occurred.",
 	// 				variant: "destructive",
 	// 			});
-	// 		} finally {
-	// 			setLoading(false);
 	// 		}
 	// 	};
+	// useEffect(() => {
 
+	// if(!loading){
 	// 	fetchConversations();
+	// }
 
 	// 	// Set up a real-time subscription for new messages
 	// 	const messagesSubscription = supabase
@@ -321,7 +312,7 @@ export default function MessagesPage() {
 	// 	return () => {
 	// 		supabase.removeChannel(messagesSubscription);
 	// 	};
-	// }, [user, router, toast]);
+	// }, [user, router, toast,loading]);
 
 	// // Filter conversations when search query changes
 	// useEffect(() => {

@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Send } from "lucide-react";
-import { supabase } from "@/lib/supabase-client";
 import { motion } from "framer-motion";
 import { trackEvent } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase-server";
 const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 export default function SupportForm() {

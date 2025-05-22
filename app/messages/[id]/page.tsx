@@ -2,30 +2,24 @@
 
 import { useState, useEffect, useRef, FormEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase-client";
-import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Send, Loader2, User, MessageSquare, Calendar, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, Send, Loader2, MessageSquare, Calendar, MapPin, Clock } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Chat, Message as MessageType, User as UserType, Skill } from "@/lib/types";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Chat, Message as MessageType, User as UserType } from "@/lib/types";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase-server";
 
 // Custom interface for a message with its sender information
 interface ExtendedMessage extends Omit<MessageType, "sender"> {
 	sender?: UserType | null;
-}
-
-// Interface for extended user info with skills
-interface UserWithSkills extends UserType {
-	skills?: Skill[];
 }
 
 export default function ChatPage() {
@@ -36,7 +30,7 @@ export default function ChatPage() {
 
 	const [chat, setChat] = useState<Chat | null>(null);
 	const [messages, setMessages] = useState<ExtendedMessage[]>([]);
-	const [participants, setParticipants] = useState<UserWithSkills[]>([]);
+	const [participants, setParticipants] = useState<UserType[]>([]);
 	const [newMessage, setNewMessage] = useState("");
 	const [isLoading, setIsLoading] = useState(true);
 	const [isSending, setIsSending] = useState(false);
@@ -98,7 +92,7 @@ export default function ChatPage() {
 				const chatParticipants = chatMembers.map((member: any) => member.user).filter(Boolean);
 
 				// Fetch skills for each participant
-				const participantsWithSkills: UserWithSkills[] = [];
+				const participantsWithSkills: UserType[] = [];
 
 				for (const participant of chatParticipants) {
 					const { data: userSkills, error: skillsError } = await supabase
@@ -308,12 +302,12 @@ export default function ChatPage() {
 	};
 
 	// Find a user in participants by ID
-	const findParticipant = (userId: string): UserWithSkills | undefined => {
+	const findParticipant = (userId: string): UserType | undefined => {
 		return participants.find((p) => p.id === userId);
 	};
 
 	// Render a profile card for a user
-	const renderProfileCard = (userInfo: UserWithSkills) => {
+	const renderProfileCard = (userInfo: UserType) => {
 		return (
 			<div className='flex flex-col space-y-3 p-1'>
 				<div className='flex items-center space-x-3'>
@@ -356,8 +350,8 @@ export default function ChatPage() {
 						<h5 className='text-xs font-medium'>Skills</h5>
 						<div className='flex flex-wrap gap-1'>
 							{userInfo.skills.map((skill) => (
-								<Badge key={skill.id} variant='secondary' className='text-xs'>
-									{skill.name}
+								<Badge key={skill} variant='secondary' className='text-xs'>
+									{skill}
 								</Badge>
 							))}
 						</div>

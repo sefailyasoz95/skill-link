@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, X, Search, MessageSquare, User, LayoutDashboard, ShieldQuestion } from "lucide-react";
+import { Menu, Search, MessageSquare, User, LayoutDashboard, ShieldQuestion } from "lucide-react";
 import { trackEvent } from "@/lib/firebase";
-import { useAuth } from "./auth-provider";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Header() {
 	const [isOpen, setIsOpen] = useState(false);

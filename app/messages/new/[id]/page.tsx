@@ -2,15 +2,15 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase-client";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Send, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { User } from "@/lib/types";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/lib/supabase-server";
 
 export default function NewMessagePage() {
 	// Get params using the hook instead of props
