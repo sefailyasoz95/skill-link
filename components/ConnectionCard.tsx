@@ -1,4 +1,3 @@
-// ConnectionCard.tsx
 import Link from "next/link";
 import { MessageSquare, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
