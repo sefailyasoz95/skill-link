@@ -96,6 +96,7 @@ export interface Application {
 	status: "pending" | "accepted" | "rejected";
 	applicant?: User;
 	project?: Project;
+	description: string;
 }
 export interface ConversationDisplayItem {
 	id: string; // Chat ID

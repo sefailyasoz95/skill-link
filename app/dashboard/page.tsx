@@ -14,16 +14,30 @@ import {
 	Activity,
 	TrendingUp,
 	ChevronRight,
+	Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
-import type { User, ProfileView, ConnectionStatus } from "@/lib/types";
+import type { User, ProfileView, ConnectionStatus, Application, Project } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase-server";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
+import {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useRef } from "react";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 // Custom type for using Connection with different field names and extended user objects
 type ConnectionWithUser = {
@@ -36,12 +50,131 @@ type ConnectionWithUser = {
 	requesting_user?: User; // For pending connections
 };
 
+function ReplyToApplicationDialog({ application, onReplied }: { application: Application; onReplied: () => void }) {
+	const [open, setOpen] = useState(false);
+	const [status, setStatus] = useState<string>("");
+	const [message, setMessage] = useState("");
+	const [loading, setLoading] = useState(false);
+	const { toast } = useToast();
+	const messageRef = useRef<HTMLTextAreaElement>(null);
+
+	const handleSend = async () => {
+		if (!status || !message.trim()) return;
+		setLoading(true);
+		try {
+			// 1. Update application status
+			const { error: updateError } = await supabase
+				.from("applications")
+				.update({ status, updated_at: new Date().toISOString() })
+				.eq("id", application.id);
+			if (updateError) throw updateError;
+
+			// 2. Find or create a chat between owner and applicant
+			// Check for existing 1-on-1 chat
+			let chatId: string | null = null;
+			const { data: existingChats } = await supabase
+				.from("chats")
+				.select("id")
+				.eq("is_group", false)
+				.in(
+					"id",
+					(
+						await supabase
+							.from("chat_members")
+							.select("chat_id")
+							.in("user_id", [application.applicant_id, application.project?.user_id])
+					).data?.map((cm: any) => cm.chat_id) || []
+				);
+			if (existingChats && existingChats.length > 0) {
+				chatId = existingChats[0].id;
+			} else {
+				// Create new chat
+				const { data: newChat, error: chatError } = await supabase
+					.from("chats")
+					.insert({ is_group: false, created_at: new Date().toISOString() })
+					.select()
+					.single();
+				if (chatError) throw chatError;
+				chatId = newChat.id;
+				// Add both users as chat members
+				await supabase.from("chat_members").insert([
+					{ chat_id: chatId, user_id: application.applicant_id, joined_at: new Date().toISOString() },
+					{ chat_id: chatId, user_id: application.project?.user_id, joined_at: new Date().toISOString() },
+				]);
+			}
+			// 3. Send message
+			await supabase.from("messages").insert({
+				chat_id: chatId,
+				sender_id: application.project?.user_id,
+				content: `Your application was ${status}.\n\nMessage from project owner: ${message}`,
+				sent_at: new Date().toISOString(),
+			});
+			toast({ title: "Reply sent", description: `Application marked as ${status}. Message sent to applicant.` });
+			setOpen(false);
+			setStatus("");
+			setMessage("");
+			onReplied();
+		} catch (error: any) {
+			toast({ title: "Error", description: error.message || "Failed to reply.", variant: "destructive" });
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return (
+		<Dialog open={open} onOpenChange={setOpen}>
+			<DialogTrigger asChild>
+				<Button size='sm' variant='outline' onClick={() => setOpen(true)}>
+					Reply
+				</Button>
+			</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Reply to Application</DialogTitle>
+					<DialogDescription>
+						Select a status and explain your decision to the applicant. A message is required.
+					</DialogDescription>
+				</DialogHeader>
+				<div className='space-y-4'>
+					<Select value={status} onValueChange={setStatus} disabled={loading}>
+						<SelectTrigger>
+							<SelectValue placeholder='Select status' />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value='accepted'>Accept</SelectItem>
+							<SelectItem value='rejected'>Decline</SelectItem>
+						</SelectContent>
+					</Select>
+					<Textarea
+						ref={messageRef}
+						value={message}
+						onChange={(e) => setMessage(e.target.value)}
+						placeholder='Explain your decision...'
+						minLength={10}
+						maxLength={500}
+						disabled={loading}
+						required
+					/>
+				</div>
+				<DialogFooter>
+					<Button onClick={handleSend} disabled={loading || !status || message.trim().length < 10}>
+						{loading ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+						Send
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 export default function DashboardPage() {
 	const { user: profile, isLoading: authLoading } = useAuth();
 	const [connections, setConnections] = useState<ConnectionWithUser[]>([]);
 	const [pendingConnections, setPendingConnections] = useState<ConnectionWithUser[]>([]);
 	const [profileViews, setProfileViews] = useState<ProfileView[]>([]);
 	const [loadingData, setLoadingData] = useState(true);
+	const [receivedApplications, setReceivedApplications] = useState<Application[]>([]);
+	const [myApplications, setMyApplications] = useState<Application[]>([]);
 
 	const { toast } = useToast();
 	const router = useRouter();
@@ -286,15 +419,74 @@ export default function DashboardPage() {
 		}
 	};
 
+	// Fetch applications for the dashboard
+	const fetchApplications = async () => {
+		if (!profile?.id) return;
+		// Received Applications: where user owns the project
+		const { data: received, error: receivedError } = await supabase
+			.from("applications")
+			.select(
+				`
+          id,
+          applicant_id,
+          project_id,
+          created_at,
+          updated_at,
+          status,
+          description,
+          applicant:applicant_id (id, full_name, profile_picture),
+          project:project_id (id, title, user_id)
+        `
+			)
+			.in(
+				"project_id",
+				(await supabase.from("projects").select("id").eq("user_id", profile.id)).data?.map((p: any) => p.id) || []
+			);
+
+		// My Applications: where user is the applicant
+		const { data: mine, error: myError } = await supabase
+			.from("applications")
+			.select(
+				`
+          id,
+          applicant_id,
+          project_id,
+          created_at,
+          updated_at,
+          status,
+          description,
+          project:project_id (id, title, user_id)
+        `
+			)
+			.eq("applicant_id", profile.id);
+
+		if (!receivedError && received) {
+			setReceivedApplications(
+				received.map((app: any) => ({
+					...app,
+					applicant: Array.isArray(app.applicant) ? app.applicant[0] : app.applicant,
+					project: Array.isArray(app.project) ? app.project[0] : app.project,
+				}))
+			);
+		}
+		if (!myError && mine) {
+			setMyApplications(
+				mine.map((app: any) => ({
+					...app,
+					project: Array.isArray(app.project) ? app.project[0] : app.project,
+				}))
+			);
+		}
+	};
+
 	useEffect(() => {
 		if (authLoading) return;
-
 		if (!profile) {
 			router.push("/auth/signin");
 			return;
 		}
-
 		fetchUserDashboardData();
+		fetchApplications();
 	}, [profile, authLoading, router]);
 
 	const handleConnectionResponse = async (connectionId: string, accept: boolean) => {
@@ -533,6 +725,96 @@ export default function DashboardPage() {
 								</CardContent>
 							</Card>
 						</motion.div>
+					</motion.div>
+					{/* Applications Tabs */}
+					<motion.div variants={slideUp}>
+						<Tabs defaultValue='received' className='w-full mb-8'>
+							<TabsList className='mb-4'>
+								<TabsTrigger value='received'>
+									Received Applications
+									{receivedApplications.filter((a) => a.status === "pending").length > 0 && (
+										<Badge className='ml-2 bg-primary text-white'>
+											{receivedApplications.filter((a) => a.status === "pending").length}
+										</Badge>
+									)}
+								</TabsTrigger>
+								<TabsTrigger value='my'>My Applications</TabsTrigger>
+							</TabsList>
+							<TabsContent value='received'>
+								{loadingData ? (
+									<div className='grid gap-4 md:grid-cols-2'>
+										{[1, 2].map((i) => (
+											<Skeleton key={i} className='h-[120px] w-full' />
+										))}
+									</div>
+								) : receivedApplications.length > 0 ? (
+									<div className='grid gap-4 md:grid-cols-2'>
+										{receivedApplications.map((app) => (
+											<Card key={app.id} className='overflow-hidden'>
+												<CardContent className='p-4'>
+													<div className='flex flex-col gap-2'>
+														<div className='flex items-center gap-2'>
+															<span className='font-medium'>Project:</span> {app.project?.title}
+														</div>
+														<div className='flex items-center gap-2'>
+															<Link href={`/profile/${app.applicant?.id}`} className='hover:underline'>
+																<span className='font-medium'>Applicant:</span> {app.applicant?.full_name}
+															</Link>
+														</div>
+														<div className='flex items-center gap-2'>
+															<span className='font-medium'>Status:</span>{" "}
+															<Badge variant={app.status === "pending" ? "secondary" : "outline"}>{app.status}</Badge>
+														</div>
+														<div className='text-xs text-muted-foreground'>{app.description}</div>
+														<div className='text-xs text-muted-foreground'>
+															Applied: {new Date(app.created_at).toLocaleString()}
+														</div>
+														{app.status === "pending" && (
+															<ReplyToApplicationDialog application={app} onReplied={fetchApplications} />
+														)}
+													</div>
+												</CardContent>
+											</Card>
+										))}
+									</div>
+								) : (
+									<div className='text-center text-muted-foreground'>No received applications.</div>
+								)}
+							</TabsContent>
+							<TabsContent value='my'>
+								{loadingData ? (
+									<div className='grid gap-4 md:grid-cols-2'>
+										{[1, 2].map((i) => (
+											<Skeleton key={i} className='h-[120px] w-full' />
+										))}
+									</div>
+								) : myApplications.length > 0 ? (
+									<div className='grid gap-4 md:grid-cols-2'>
+										{myApplications.map((app) => (
+											<Card key={app.id} className='overflow-hidden'>
+												<CardContent className='p-4'>
+													<div className='flex flex-col gap-2'>
+														<div className='flex items-center gap-2'>
+															<span className='font-medium'>Project:</span> {app.project?.title}
+														</div>
+														<div className='flex items-center gap-2'>
+															<span className='font-medium'>Status:</span>{" "}
+															<Badge variant={app.status === "pending" ? "secondary" : "outline"}>{app.status}</Badge>
+														</div>
+														<div className='text-xs text-muted-foreground'>{app.description}</div>
+														<div className='text-xs text-muted-foreground'>
+															Applied: {new Date(app.created_at).toLocaleString()}
+														</div>
+													</div>
+												</CardContent>
+											</Card>
+										))}
+									</div>
+								) : (
+									<div className='text-center text-muted-foreground'>No applications submitted.</div>
+								)}
+							</TabsContent>
+						</Tabs>
 					</motion.div>
 					{/* Connections and Requests */}
 					<motion.div variants={slideUp}>

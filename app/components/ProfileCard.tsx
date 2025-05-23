@@ -26,6 +26,16 @@ import { User as UserType, Project } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase-server";
 import Image from "next/image";
+import {
+	Dialog,
+	DialogTrigger,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogDescription,
+	DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ExtendedUserProfile extends UserType {
 	projects: Project[];
@@ -515,43 +525,49 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 									Projects
 								</h3>
 								<div className='space-y-4'>
-									{profile?.projects.map((project, index) => (
-										<Card key={index} className='overflow-hidden border'>
-											<CardContent className='p-4'>
-												<div className='flex flex-col md:flex-row md:items-start md:justify-between gap-2'>
-													<div className='flex-1'>
-														<div className='flex items-center gap-2'>
-															<h4 className='font-medium text-base'>{project.title}</h4>
-															{project.is_accepting_applications && (
-																<Badge
-																	variant='outline'
-																	className='text-xs text-green-700 border-green-400 bg-green-50'>
-																	Accepting Applications
-																</Badge>
+									{profile?.projects.map((project, index) => {
+										const isOwner = user?.id === project.user_id;
+										return (
+											<Card key={index} className='overflow-hidden border'>
+												<CardContent className='p-4'>
+													<div className='flex flex-col md:flex-row md:items-start md:justify-between gap-2'>
+														<div className='flex-1'>
+															<div className='flex items-center gap-2'>
+																<h4 className='font-medium text-base'>{project.title}</h4>
+																{project.is_accepting_applications &&
+																	(isOwner ? (
+																		<Badge
+																			variant='outline'
+																			className='text-xs text-green-700 border-green-400 bg-green-50'>
+																			Accepting Applications
+																		</Badge>
+																	) : (
+																		<ApplyDialogButton project={project} user={user} toast={toast} />
+																	))}
+															</div>
+															<p className='text-sm text-muted-foreground mt-1 md:pr-4'>{project.description}</p>
+															{project.created_at && (
+																<p className='text-xs text-muted-foreground mt-2'>
+																	Added on {formatDate(project.created_at)}
+																</p>
 															)}
 														</div>
-														<p className='text-sm text-muted-foreground mt-1 md:pr-4'>{project.description}</p>
-														{project.created_at && (
-															<p className='text-xs text-muted-foreground mt-2'>
-																Added on {formatDate(project.created_at)}
-															</p>
+														{project.url && (
+															<div className='mt-2 md:mt-0'>
+																<a
+																	href={project.url}
+																	target='_blank'
+																	rel='noopener noreferrer'
+																	className='text-primary hover:underline flex items-center text-sm'>
+																	<Link2 className='h-3.5 w-3.5 mr-1' /> View Project
+																</a>
+															</div>
 														)}
 													</div>
-													{project.url && (
-														<div className='mt-2 md:mt-0'>
-															<a
-																href={project.url}
-																target='_blank'
-																rel='noopener noreferrer'
-																className='text-primary hover:underline flex items-center text-sm'>
-																<Link2 className='h-3.5 w-3.5 mr-1' /> View Project
-															</a>
-														</div>
-													)}
-												</div>
-											</CardContent>
-										</Card>
-									))}
+												</CardContent>
+											</Card>
+										);
+									})}
 								</div>
 							</div>
 						</>
@@ -559,5 +575,84 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+function ApplyDialogButton({
+	project,
+	user,
+	toast,
+}: {
+	project: Project;
+	user: UserType | null | undefined;
+	toast: (args: any) => void;
+}) {
+	const [open, setOpen] = useState(false);
+	const [description, setDescription] = useState("");
+	const [loading, setLoading] = useState(false);
+
+	const handleApply = async () => {
+		if (!user?.id) return;
+		setLoading(true);
+		try {
+			const { error } = await supabase.from("applications").insert({
+				applicant_id: user.id,
+				project_id: project.id,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+				status: "pending",
+				description,
+			});
+			if (error) throw error;
+			toast({
+				title: "Application Sent",
+				description: "Your application has been submitted.",
+			});
+			setOpen(false);
+			setDescription("");
+		} catch (error: any) {
+			toast({
+				title: "Error",
+				description: error.message || "Failed to submit application.",
+				variant: "destructive",
+			});
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return (
+		<Dialog open={open} onOpenChange={setOpen}>
+			<DialogTrigger asChild>
+				<Badge
+					variant='outline'
+					className='text-xs text-green-700 border-green-400 bg-green-50 cursor-pointer hover:bg-green-100'
+					onClick={() => setOpen(true)}>
+					Accepting Applications
+				</Badge>
+			</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Apply to {project.title}</DialogTitle>
+					<DialogDescription>
+						Are you sure you want to apply to this project? Please tell the owner why you want to join.
+					</DialogDescription>
+				</DialogHeader>
+				<Textarea
+					value={description}
+					onChange={(e) => setDescription(e.target.value)}
+					placeholder='Why do you want to join this project?'
+					minLength={10}
+					maxLength={500}
+					disabled={loading}
+				/>
+				<DialogFooter>
+					<Button onClick={handleApply} disabled={loading || description.length < 10}>
+						{loading ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+						Apply
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
