@@ -30,7 +30,7 @@ export interface Project {
 	url: string | null;
 	created_at: string;
 	user?: User;
-	is_current_project: boolean;
+	is_accepting_applications: boolean;
 }
 export interface CollabNeed {
 	id: string;

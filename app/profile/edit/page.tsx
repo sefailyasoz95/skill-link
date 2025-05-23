@@ -35,7 +35,7 @@ const profileFormSchema = z.object({
 			z.object({
 				title: z.string().min(1, "Project title is required"),
 				description: z.string().nullable(),
-				is_current_project: z.boolean().default(false),
+				is_accepting_applications: z.boolean().default(false),
 				url: z
 					.string()
 					.url("Must be a valid URL")
@@ -212,7 +212,7 @@ export default function EditProfilePage() {
 		setPastProjects(updated);
 	};
 
-	const updatePastProject = (index: number, field: keyof (typeof pastProjects)[0], value: string) => {
+	const updatePastProject = (index: number, field: keyof (typeof pastProjects)[0], value: string | boolean) => {
 		const updated = [...pastProjects];
 		updated[index] = { ...updated[index], [field]: value };
 		setPastProjects(updated);
@@ -257,6 +257,7 @@ export default function EditProfilePage() {
 						description: project.description,
 						url: project.url,
 						created_at: new Date().toISOString(),
+						is_accepting_applications: project.is_accepting_applications,
 					});
 
 					if (addProjectError) {
@@ -356,7 +357,7 @@ export default function EditProfilePage() {
 								</div>
 							</div>
 
-							{/* Past Projects Section */}
+							{/* Projects Section */}
 							<div className='space-y-6 pt-4'>
 								<div className='flex items-center justify-between'>
 									<Skeleton className='h-6 w-32' />
@@ -649,10 +650,10 @@ export default function EditProfilePage() {
 									/>
 								</div>
 
-								{/* Past Projects */}
+								{/* Projects */}
 								<div className='space-y-6 pt-4'>
 									<div className='flex items-center justify-between'>
-										<h3 className='text-lg font-medium'>Past Projects</h3>
+										<h3 className='text-lg font-medium'>Projects</h3>
 										<Button type='button' variant='outline' size='sm' onClick={addPastProject}>
 											<PlusCircle className='mr-2 h-4 w-4' />
 											Add Project
@@ -661,7 +662,7 @@ export default function EditProfilePage() {
 
 									{pastProjects.length === 0 ? (
 										<div className='rounded-md border border-dashed p-6 text-center'>
-											<h4 className='font-medium'>No past projects added</h4>
+											<h4 className='font-medium'>No projects added</h4>
 											<p className='mt-1 text-sm text-muted-foreground'>
 												Showcase your past work to attract potential collaborators
 											</p>
@@ -717,6 +718,22 @@ export default function EditProfilePage() {
 																	onChange={(e) => updatePastProject(index, "url", e.target.value)}
 																	placeholder='https://example.com'
 																/>
+															</div>
+															<div className='flex flex-col space-y-2'>
+																<div className='flex items-center space-x-2'>
+																	<input
+																		type='checkbox'
+																		id={`project-current-${index}`}
+																		checked={!!project.is_accepting_applications}
+																		onChange={(e) =>
+																			updatePastProject(index, "is_accepting_applications", e.target.checked as boolean)
+																		}
+																	/>
+																	<FormLabel htmlFor={`project-current-${index}`}>Allow Applications</FormLabel>
+																</div>
+																<small className='text-muted-foreground text-xs'>
+																	When selected, other users can apply to your project.
+																</small>
 															</div>
 														</div>
 													</CardContent>

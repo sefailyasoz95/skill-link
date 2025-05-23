@@ -509,7 +509,7 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 							<div className='space-y-4'>
 								<h3 className='text-lg font-medium flex items-center'>
 									<Github className='h-4 w-4 mr-2 text-muted-foreground' />
-									Past Projects
+									Projects
 								</h3>
 								<div className='space-y-4'>
 									{profile?.projects.map((project, index) => (
@@ -517,7 +517,16 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 											<CardContent className='p-4'>
 												<div className='flex flex-col md:flex-row md:items-start md:justify-between gap-2'>
 													<div className='flex-1'>
-														<h4 className='font-medium text-base'>{project.title}</h4>
+														<div className='flex items-center gap-2'>
+															<h4 className='font-medium text-base'>{project.title}</h4>
+															{project.is_accepting_applications && (
+																<Badge
+																	variant='outline'
+																	className='text-xs text-green-700 border-green-400 bg-green-50'>
+																	Accepting Applications
+																</Badge>
+															)}
+														</div>
 														<p className='text-sm text-muted-foreground mt-1 md:pr-4'>{project.description}</p>
 														{project.created_at && (
 															<p className='text-xs text-muted-foreground mt-2'>
