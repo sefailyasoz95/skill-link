@@ -7,7 +7,6 @@ import { useParams } from "next/navigation";
 function UserProfilePage() {
 	const params = useParams();
 	const userId = params.id as string;
-	console.log("userId ", userId);
 
 	return (
 		<div className='container py-8 px-4 md:py-10'>
