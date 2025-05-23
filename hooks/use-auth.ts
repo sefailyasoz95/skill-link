@@ -13,7 +13,10 @@ export function useAuth() {
 			if (redirectTo) {
 				sessionStorage.setItem("redirectAfterAuth", redirectTo);
 			}
-			const _redirectTo = process.env.NEXT_PUBLIC_REDIRECT_URL;
+			const _redirectTo =
+				process.env.NEXT_PUBLIC_NODE_ENV === "development"
+					? "http://localhost:3000/auth/callback"
+					: "https://skilllink.co/auth/callback";
 
 			const { error } = await supabase.auth.signInWithOAuth({
 				provider: "google",

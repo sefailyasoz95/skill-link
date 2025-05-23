@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { User as UserType, Project } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase-server";
+import Image from "next/image";
 
 interface ExtendedUserProfile extends UserType {
 	projects: Project[];
@@ -406,10 +407,12 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 					<div className='relative mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4'>
 						<div className='h-20 w-20 md:h-24 md:w-24 rounded-full bg-primary/10 ring-4 ring-background flex items-center justify-center'>
 							{profile?.profile_picture ? (
-								<img
+								<Image
 									src={profile?.profile_picture}
 									alt={profile?.full_name || "Profile"}
 									className='h-full w-full rounded-full object-cover'
+									width={48}
+									height={48}
 								/>
 							) : (
 								<User className='h-8 w-8 md:h-12 md:w-12 text-primary' />

@@ -23,6 +23,7 @@ import { motion } from "framer-motion";
 import type { User, ProfileView, ConnectionStatus } from "@/lib/types";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/lib/supabase-server";
+import Image from "next/image";
 
 // Custom type for using Connection with different field names and extended user objects
 type ConnectionWithUser = {
@@ -422,10 +423,12 @@ export default function DashboardPage() {
 											<div className='flex items-center space-x-4'>
 												<div className='h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden'>
 													{profile.profile_picture ? (
-														<img
+														<Image
 															src={profile.profile_picture}
 															alt={profile.full_name || "Profile"}
 															className='h-full w-full object-cover'
+															width={48}
+															height={48}
 														/>
 													) : (
 														<UserIcon className='h-6 w-6 text-primary' />
