@@ -43,14 +43,13 @@ interface ProfileCardProps {
 }
 
 export default function ProfileCard({ userId, showEditButton = true }: ProfileCardProps) {
-	const [loading, setLoading] = useState(true);
 	const [profile, setProfile] = useState<ExtendedUserProfile | null>(null);
 	const [connectionState, setConnectionState] = useState<ConnectionState>({
 		status: "not_connected",
 	});
 	const [isLoadingConnection, setIsLoadingConnection] = useState(false);
 
-	const { user } = useAuth();
+	const { user, isLoading: loading } = useAuth();
 	const router = useRouter();
 	const { toast } = useToast();
 
@@ -91,9 +90,10 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 
 	useEffect(() => {
 		// Determine which user ID to use for fetching
+
 		const targetUserId = userId || user?.id;
 
-		if (!targetUserId) {
+		if (!targetUserId && !loading) {
 			router.push("/auth/signin");
 			return;
 		}
@@ -144,10 +144,10 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 					description: error.message || "Failed to load profile data",
 					variant: "destructive",
 				});
-			} finally {
-				setLoading(false);
 			}
 		};
+
+		if (!loading) fetchProfile();
 	}, [userId, user, router, toast]);
 
 	const checkConnectionStatus = async (currentUserId: string, targetUserId: string) => {
@@ -307,18 +307,13 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 		);
 	}
 
-	if (!profile) {
+	if (!profile && !loading) {
 		return (
 			<div className='text-center space-y-4'>
 				<h1 className='text-3xl font-bold'>Profile Not Found</h1>
 				<p className='text-muted-foreground'>
 					{userId ? "This user profile could not be found." : "Please create your profile to get started."}
 				</p>
-				{!userId && (
-					<Button asChild>
-						<a href='/profile/create'>Create Profile</a>
-					</Button>
-				)}
 			</div>
 		);
 	}
@@ -410,10 +405,10 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 					<div className='absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 rounded-t-lg' />
 					<div className='relative mt-6 flex flex-col sm:flex-row items-start sm:items-center gap-4'>
 						<div className='h-20 w-20 md:h-24 md:w-24 rounded-full bg-primary/10 ring-4 ring-background flex items-center justify-center'>
-							{profile.profile_picture ? (
+							{profile?.profile_picture ? (
 								<img
-									src={profile.profile_picture}
-									alt={profile.full_name || "Profile"}
+									src={profile?.profile_picture}
+									alt={profile?.full_name || "Profile"}
 									className='h-full w-full rounded-full object-cover'
 								/>
 							) : (
@@ -421,23 +416,23 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 							)}
 						</div>
 						<div>
-							<CardTitle className='text-xl md:text-2xl'>{profile.full_name || "Unnamed User"}</CardTitle>
+							<CardTitle className='text-xl md:text-2xl'>{profile?.full_name || "Unnamed User"}</CardTitle>
 							<div className='flex flex-col md:flex-row md:items-center md:gap-3 mt-1'>
-								{profile.location && (
+								{profile?.location && (
 									<CardDescription className='flex items-center'>
-										<MapPin className='h-3.5 w-3.5 mr-1 flex-shrink-0' /> {profile.location}
+										<MapPin className='h-3.5 w-3.5 mr-1 flex-shrink-0' /> {profile?.location}
 									</CardDescription>
 								)}
-								{profile.availability && (
+								{profile?.availability && (
 									<CardDescription className='flex items-center mt-1 md:mt-0'>
 										<Clock className='h-3.5 w-3.5 mr-1 flex-shrink-0' />
-										Available for {profile.availability}
+										Available for {profile?.availability}
 									</CardDescription>
 								)}
-								{profile.created_at && (
+								{profile?.created_at && (
 									<CardDescription className='flex items-center mt-1 md:mt-0'>
 										<Calendar className='h-3.5 w-3.5 mr-1 flex-shrink-0' />
-										Joined {formatDate(profile.created_at)}
+										Joined {formatDate(profile?.created_at)}
 									</CardDescription>
 								)}
 							</div>
@@ -445,9 +440,9 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 					</div>
 				</CardHeader>
 				<CardContent className='space-y-6 pt-6'>
-					{profile.bio && (
+					{profile?.bio && (
 						<div>
-							<p className='text-sm leading-relaxed whitespace-pre-line'>{profile.bio}</p>
+							<p className='text-sm leading-relaxed whitespace-pre-line'>{profile?.bio}</p>
 						</div>
 					)}
 
@@ -457,8 +452,8 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 							Skills
 						</h3>
 						<div className='flex flex-wrap gap-2'>
-							{profile.skills && profile.skills.length > 0 ? (
-								profile.skills.map((skill, index) => (
+							{profile?.skills && profile?.skills.length > 0 ? (
+								profile?.skills.map((skill, index) => (
 									<Badge key={index} variant='secondary' className='px-3 py-1 text-sm'>
 										{skill}
 									</Badge>
@@ -477,8 +472,8 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 							Looking For
 						</h3>
 						<div className='flex flex-wrap gap-2'>
-							{profile.looking_for && profile.looking_for.length > 0 ? (
-								profile.looking_for.map((looking, index) => (
+							{profile?.looking_for && profile?.looking_for.length > 0 ? (
+								profile?.looking_for.map((looking, index) => (
 									<Badge key={index} className='px-3 py-1 text-sm'>
 										{looking}
 									</Badge>
@@ -496,8 +491,8 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 							Conditions
 						</h3>
 						<div className='flex flex-wrap gap-2'>
-							{profile.conditions && profile.conditions.length > 0 ? (
-								profile.conditions.map((condition, index) => (
+							{profile?.conditions && profile?.conditions.length > 0 ? (
+								profile?.conditions.map((condition, index) => (
 									<Badge key={index} className='px-3 py-1 text-sm'>
 										{condition}
 									</Badge>
@@ -508,7 +503,7 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 						</div>
 					</div>
 
-					{profile.projects && profile.projects.length > 0 && (
+					{profile?.projects && profile?.projects.length > 0 && (
 						<>
 							<Separator className='my-1' />
 							<div className='space-y-4'>
@@ -517,7 +512,7 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 									Past Projects
 								</h3>
 								<div className='space-y-4'>
-									{profile.projects.map((project, index) => (
+									{profile?.projects.map((project, index) => (
 										<Card key={index} className='overflow-hidden border'>
 											<CardContent className='p-4'>
 												<div className='flex flex-col md:flex-row md:items-start md:justify-between gap-2'>

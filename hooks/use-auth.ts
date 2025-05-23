@@ -52,9 +52,7 @@ export function useAuth() {
 					setIsLoading(false);
 					return;
 				}
-
 				setUser(profile);
-				router.push("/dashboard");
 			} catch (error) {
 				setUser(null);
 			} finally {
