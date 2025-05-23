@@ -54,11 +54,11 @@ export function useAuth() {
 				}
 
 				setUser(profile);
+				router.push("/dashboard");
 			} catch (error) {
 				setUser(null);
 			} finally {
 				setIsLoading(false);
-				router.push("/dashboard");
 			}
 		}
 

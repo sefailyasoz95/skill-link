@@ -22,33 +22,6 @@ export const metadata: Metadata = {
 	],
 	creator: "Softwarify",
 	applicationName: "Skill Link",
-	viewport: {
-		width: "device-width",
-		initialScale: 1,
-		maximumScale: 1,
-		userScalable: false,
-	},
-	themeColor: "#000000",
-	icons: {
-		icon: "/favicon.ico",
-		shortcut: "/favicon.ico",
-		apple: "/favicon.ico",
-	},
-	openGraph: {
-		title: "Skill Link | Build together. Grow faster.",
-		description: "Connect with like-minded solopreneurs to collaborate on projects.",
-		url: "https://skilllink.co",
-		siteName: "Skill Link",
-		type: "website",
-		images: [
-			{
-				url: "/og-image.png",
-				width: 1200,
-				height: 630,
-				alt: "Skill Link",
-			},
-		],
-	},
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

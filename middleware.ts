@@ -11,11 +11,11 @@ export async function middleware(req: NextRequest) {
 			data: { session },
 			error,
 		} = await supabase.auth.getSession();
-		console.log("error: ", error);
 
 		res.headers.set("x-middleware-cache", "no-cache");
 		res.headers.set("x-debug-session", session ? "exists" : "none");
 		res.headers.set("x-debug-url", req.nextUrl.pathname);
+
 		if (error) {
 			if (!publicRoutes.includes(req.nextUrl.pathname)) {
 				return res;
@@ -26,6 +26,7 @@ export async function middleware(req: NextRequest) {
 		if (req.nextUrl.pathname.startsWith("/auth/callback")) {
 			return res;
 		}
+
 		if (!session && !publicRoutes.includes(req.nextUrl.pathname)) {
 			return NextResponse.redirect(new URL("/", req.url));
 		}

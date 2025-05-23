@@ -148,8 +148,6 @@ export default function ProfileCard({ userId, showEditButton = true }: ProfileCa
 				setLoading(false);
 			}
 		};
-
-		fetchProfile();
 	}, [userId, user, router, toast]);
 
 	const checkConnectionStatus = async (currentUserId: string, targetUserId: string) => {
