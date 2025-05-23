@@ -10,8 +10,7 @@ const inter = Laila({ weight: "500", subsets: ["latin"] });
 
 export const metadata: Metadata = {
 	title: "Skill Link | Build together. Grow faster.",
-	description:
-		"Connect with like-minded solopreneurs to collaborate on projects. Find your co-founder for your startup.",
+	description: "Connect with like-minded solopreneurs to collaborate on projects. Find co-founder for your startup.",
 	keywords:
 		"solopreneur, collaboration, projects, networking, skills, connect, build, grow, community, startup, entrepreneurship, freelancing, partnerships, innovation, ideas, teamwork, growth, support, resources",
 	authors: [

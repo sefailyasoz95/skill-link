@@ -18,6 +18,8 @@ export interface User {
 	connections_as_a?: Connection[]; // user_a = this user
 	connections_as_b?: Connection[]; // user_b = this user
 	socail_links?: Array<{ key: string; value: string }> | null;
+	links: number;
+	subscription_type: "free" | "pro";
 }
 
 export interface Project {
@@ -83,6 +85,17 @@ export interface Message {
 	sent_at: string;
 	chat?: Chat;
 	sender?: User;
+}
+
+export interface Application {
+	id: string;
+	applicant_id: string;
+	project_id: string;
+	created_at: Date;
+	updated_at: string;
+	status: "pending" | "accepted" | "rejected";
+	applicant?: User;
+	project?: Project;
 }
 export interface ConversationDisplayItem {
 	id: string; // Chat ID
