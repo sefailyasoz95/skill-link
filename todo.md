@@ -1,5 +1,13 @@
 # SkillLink Project TODO
 
+## [2024-05-23] Major Messaging & RLS Improvements
+
+- Fixed and validated all RLS policies for chats, chat_members, and messages tables
+- Ensured real-time chat works for both users (messages appear instantly)
+- Fixed authentication redirect issues in messaging pages
+- Improved error handling and UX for chat creation and message sending
+- Thoroughly debugged and validated real-time and RLS integration
+
 ## Priority Tasks
 
 ### 1. Complete the Profile Edit Functionality
@@ -35,7 +43,12 @@
 
 - [x] Complete messaging functionality between connected users
 - [x] Implement real-time chat using Supabase Realtime
-- [ ] Add message notifications
+- [x] Add message notifications (real-time updates now work for both users)
+- [x] Fix authentication redirect logic and page refresh navigation issues in messaging pages
+- [x] Add loading state handling during authentication checks
+- [x] Fix RLS policies for chats, chat_members, and messages tables
+- [x] Ensure both users are added to chat_members before sending messages for real-time delivery
+- [x] Improved error handling and UX for chat creation and message sending
 - [ ] Support for basic formatting and file sharing
 
 ### 5. Dashboard Enhancement
@@ -52,8 +65,8 @@
 - [x] Add persistent sessions with proper cookie management
 - [x] Fix page refresh navigation issues and route protection
 - [x] Add loading state handling during authentication checks
-- [ ] Improve error handling for authentication failures
-- [ ] Implement proper redirect logic that respects original destination
+- [x] Improve error handling for authentication failures
+- [x] Implement proper redirect logic that respects original destination
 
 ## Additional Features
 
@@ -99,3 +112,4 @@
 - [ ] Implement comprehensive testing
 - [ ] Optimize database queries
 - [ ] Improve frontend performance
+- [x] RLS and real-time messaging have been thoroughly debugged and validated (2024-05-23)
