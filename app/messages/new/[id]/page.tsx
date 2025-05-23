@@ -25,7 +25,7 @@ export default function NewMessagePage() {
 	const [error, setError] = useState<string | null>(null);
 
 	const router = useRouter();
-	const { user } = useAuth();
+	const { user, isLoading: authLoading } = useAuth();
 	const { toast } = useToast();
 
 	// Get the recipient user data
@@ -61,13 +61,13 @@ export default function NewMessagePage() {
 			}
 		}
 
+		if (authLoading) return; // Wait until auth is loaded
 		if (!user) {
 			router.push("/auth/signin");
 			return;
 		}
-
 		fetchRecipientUser();
-	}, [recipientId, router, toast, user]);
+	}, [recipientId, router, toast, user, authLoading]);
 
 	// Check if there's an existing chat between these users
 	useEffect(() => {
@@ -159,40 +159,36 @@ export default function NewMessagePage() {
 
 			if (chatError) throw chatError;
 
-			// 2. Add both users as chat members
-			const chatMembersToInsert = [
-				{
-					chat_id: newChat.id,
-					user_id: user.id,
-					joined_at: new Date().toISOString(),
-				},
-				{
-					chat_id: newChat.id,
-					user_id: recipientUser.id,
-					joined_at: new Date().toISOString(),
-				},
-			];
+			// 2. Add the current user as chat member
+			const { error: memberError1 } = await supabase.from("chat_members").insert({
+				chat_id: newChat.id,
+				user_id: user.id,
+				joined_at: new Date().toISOString(),
+			});
+			if (memberError1) throw memberError1;
 
-			const { error: memberError } = await supabase.from("chat_members").insert(chatMembersToInsert);
+			// 3. Add the recipient as chat member
+			const { error: memberError2 } = await supabase.from("chat_members").insert({
+				chat_id: newChat.id,
+				user_id: recipientUser.id,
+				joined_at: new Date().toISOString(),
+			});
+			if (memberError2) throw memberError2;
 
-			if (memberError) throw memberError;
-
-			// 3. Add the first message
+			// 4. Only after both users are in chat_members, send the first message
 			const { error: messageError } = await supabase.from("messages").insert({
 				chat_id: newChat.id,
 				sender_id: user.id,
 				content: message,
 				sent_at: new Date().toISOString(),
 			});
-
 			if (messageError) throw messageError;
 
-			// 4. Navigate to the new chat
+			// 5. Navigate to the new chat
 			toast({
 				title: "Success",
 				description: "Message sent successfully",
 			});
-
 			router.push(`/messages/${newChat.id}`);
 		} catch (err: any) {
 			toast({

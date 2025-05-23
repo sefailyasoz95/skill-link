@@ -38,11 +38,12 @@ export default function ChatPage() {
 
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const router = useRouter();
-	const { user } = useAuth();
+	const { user, isLoading: authLoading } = useAuth();
 	const { toast } = useToast();
 
 	// Fetch chat data, messages and user skills
 	useEffect(() => {
+		if (authLoading) return; // Wait until auth is loaded
 		if (!user) {
 			router.push("/auth/signin");
 			return;
@@ -131,6 +132,7 @@ export default function ChatPage() {
             content,
             sent_at,
             sender_id,
+            status,
             sender:users (
               id,
               full_name,
@@ -155,6 +157,8 @@ export default function ChatPage() {
 					sender_id: msg.sender_id,
 					content: msg.content,
 					sent_at: msg.sent_at,
+					status:
+						"status" in msg && typeof msg.status === "string" ? (msg.status as "sent" | "delivered" | "read") : "sent",
 					sender: msg.sender,
 				})) as ExtendedMessage[];
 
@@ -199,6 +203,7 @@ export default function ChatPage() {
 						sender_id: payload.new.sender_id,
 						content: payload.new.content,
 						sent_at: payload.new.sent_at,
+						status: (payload.new.status as "sent" | "delivered" | "read") || "sent",
 						sender: (senderData as UserType) || null,
 					};
 
@@ -210,7 +215,7 @@ export default function ChatPage() {
 		return () => {
 			supabase.removeChannel(messagesSubscription);
 		};
-	}, [chatId, router, toast, user]);
+	}, [chatId, router, toast, user, authLoading]);
 
 	// Scroll to bottom when messages change
 	useEffect(() => {
@@ -263,9 +268,18 @@ export default function ChatPage() {
 
 			// Add the new message to the state immediately
 			if (data?.[0]) {
+				const msg = data[0];
 				const newMsg: ExtendedMessage = {
-					...data[0],
-					sender: user, // Add the current user as sender since we know it's the sender
+					id: msg.id,
+					chat_id: msg.chat_id,
+					sender_id: msg.sender_id,
+					content: msg.content,
+					sent_at: msg.sent_at,
+					status:
+						msg && "status" in msg && typeof msg.status === "string"
+							? (msg.status as "sent" | "delivered" | "read")
+							: "sent",
+					sender: Array.isArray(msg.sender) ? (msg.sender[0] as UserType) : (msg.sender as UserType) || user,
 				};
 				setMessages((prev) => [...prev, newMsg]);
 				setNewMessage("");
@@ -463,8 +477,8 @@ export default function ChatPage() {
 								{participants
 									.filter((p) => p.id !== user?.id)
 									.slice(0, 3)
-									.map((participant) => (
-										<HoverCard key={participant.id}>
+									.map((participant, index) => (
+										<HoverCard key={index}>
 											<HoverCardTrigger asChild>
 												<div className='h-8 w-8 rounded-full border-2 border-background overflow-hidden bg-primary/10 cursor-pointer hover:scale-105 transition-transform'>
 													{participant.profile_picture ? (
@@ -507,12 +521,12 @@ export default function ChatPage() {
 							</div>
 						) : (
 							<div className='space-y-6'>
-								{messages.map((message) => {
+								{messages.map((message, index) => {
 									const isCurrentUser = message.sender_id === user?.id;
 									const senderInfo = isCurrentUser ? undefined : findParticipant(message.sender_id || "");
 
 									return (
-										<div key={message.id} className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}>
+										<div key={message.id + index} className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}>
 											{!isCurrentUser && senderInfo && (
 												<HoverCard>
 													<HoverCardTrigger asChild>

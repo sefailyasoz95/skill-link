@@ -12,6 +12,7 @@ import { useAuth } from "@/hooks/use-auth";
 
 export default function Header() {
 	const [isOpen, setIsOpen] = useState(false);
+	const [unreadCount, setUnreadCount] = useState(0);
 	const pathname = usePathname();
 	const { user, signOut } = useAuth();
 
@@ -22,6 +23,15 @@ export default function Header() {
 			non_interaction: true,
 		});
 	}, []);
+
+	useEffect(() => {
+		function handleUnread(e: any) {
+			setUnreadCount(e.detail?.count || 0);
+		}
+		window.addEventListener("unread-messages", handleUnread);
+		return () => window.removeEventListener("unread-messages", handleUnread);
+	}, []);
+
 	const routes = [
 		// {
 		// 	name: "Home",
@@ -94,8 +104,13 @@ export default function Header() {
 									</Link>
 								</Button>
 								<Button variant='ghost' size='icon' asChild>
-									<Link href='/messages'>
+									<Link href='/messages' className='relative'>
 										<MessageSquare className='h-4 w-4' />
+										{unreadCount > 0 && (
+											<span className='absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-xs text-white'>
+												{unreadCount}
+											</span>
+										)}
 										<span className='sr-only'>Messages</span>
 									</Link>
 								</Button>

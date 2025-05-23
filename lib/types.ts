@@ -85,6 +85,7 @@ export interface Message {
 	sent_at: string;
 	chat?: Chat;
 	sender?: User;
+	status: "sent" | "delivered" | "read";
 }
 
 export interface Application {
