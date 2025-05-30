@@ -566,7 +566,7 @@ export default function ProfileCard({
                     return (
                       <Card key={index} className="overflow-hidden border">
                         <CardContent className="p-4">
-                          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                          <div className="flex flex-col md:flex-row md:justify-between gap-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <h4 className="font-medium text-base">
@@ -585,34 +585,34 @@ export default function ProfileCard({
                               <p className="text-sm text-muted-foreground mt-1 md:pr-4">
                                 {project.description}
                               </p>
-                              <div className="flex flex-row items-center justify-between mt-2">
-                                {project.created_at && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Added on {formatDate(project.created_at)}
-                                  </p>
-                                )}
-                                {!isOwner && (
-                                  <ApplyDialogButton
-                                    project={project}
-                                    user={user}
-                                    toast={toast}
-                                  />
-                                )}
-                              </div>
+                              {project.created_at && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Added on {formatDate(project.created_at)}
+                                </p>
+                              )}
                             </div>
-                            {project.url && (
-                              <div className="mt-2 md:mt-0">
-                                <a
-                                  href={project.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary hover:underline flex items-center text-sm"
-                                >
-                                  <Link2 className="h-3.5 w-3.5 mr-1" /> View
-                                  Project
-                                </a>
-                              </div>
-                            )}
+                            <div className="flex flex-col items-end justify-between">
+                              {project.url && (
+                                <div className="mt-2 md:mt-0">
+                                  <a
+                                    href={project.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:underline flex items-center text-sm"
+                                  >
+                                    <Link2 className="h-3.5 w-3.5 mr-1" /> View
+                                    Project
+                                  </a>
+                                </div>
+                              )}
+                              {!isOwner && (
+                                <ApplyDialogButton
+                                  project={project}
+                                  user={user}
+                                  toast={toast}
+                                />
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
