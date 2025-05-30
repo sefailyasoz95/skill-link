@@ -585,9 +585,9 @@ export default function ProfileCard({
                               <p className="text-sm text-muted-foreground mt-1 md:pr-4">
                                 {project.description}
                               </p>
-                              <div>
+                              <div className="flex flex-row items-center justify-between mt-2">
                                 {project.created_at && (
-                                  <p className="text-xs text-muted-foreground mt-2">
+                                  <p className="text-xs text-muted-foreground">
                                     Added on {formatDate(project.created_at)}
                                   </p>
                                 )}
